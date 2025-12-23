@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/savings_goal.dart';
 import '../services/api_service.dart';
-import 'financial_data_manager.dart';
 
 class SavingsGoalProvider with ChangeNotifier {
   final ApiService _api = ApiService();
-  FinancialDataManager? _financialManager;
 
   List<SavingsGoal> _savingsGoals = [];
   bool _isLoading = false;
@@ -15,10 +13,6 @@ class SavingsGoalProvider with ChangeNotifier {
   List<SavingsGoal> get goals => _savingsGoals; // Backward compatibility
   bool get isLoading => _isLoading;
   String? get error => _error;
-
-  void setFinancialManager(FinancialDataManager manager) {
-    _financialManager = manager;
-  }
 
   Future<void> initialize() async {
     _isLoading = true;

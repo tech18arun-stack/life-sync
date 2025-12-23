@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../providers/financial_data_manager.dart';
@@ -311,7 +311,9 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   void _saveExpense() {
     if (_formKey.currentState!.validate()) {
       final expense = Expense(
-        id: widget.expense?.id ?? const Uuid().v4(),
+        id: widget
+            .expense
+            ?.id, // Don't generate UUID - let MongoDB create the _id
         description: _titleController.text,
         amount: double.parse(_amountController.text),
         category: _selectedCategory,

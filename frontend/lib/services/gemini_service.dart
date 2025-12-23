@@ -588,7 +588,7 @@ Be analytical, professional, and solution-oriented.
     final expenseDescriptions = expenses
         .map(
           (e) =>
-              '${e.description ?? e.category}: ₹${e.amount} on ${e.date.toString().split(' ')[0]}',
+              '${e.description.isNotEmpty ? e.description : e.category}: ₹${e.amount} on ${e.date.toString().split(' ')[0]}',
         )
         .join('\n');
 

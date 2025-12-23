@@ -16,7 +16,6 @@ import 'providers/family_event_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/analytics_provider.dart';
 import 'services/notification_service.dart';
-import 'services/backup_service.dart';
 import 'utils/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/expenses_screen.dart';
@@ -37,10 +36,6 @@ void main() async {
     final notificationService = NotificationService();
     await notificationService.initialize();
     await notificationService.requestPermissions();
-
-    // Request Storage Permission (for backup features)
-    final backupService = BackupService();
-    await backupService.requestStoragePermission();
   }
 
   runApp(const MyApp());
@@ -82,10 +77,8 @@ class MyApp extends StatelessWidget {
         ),
 
         // Savings Goals Provider (MongoDB)
-        ChangeNotifierProxyProvider<FinancialDataManager, SavingsGoalProvider>(
-          create: (_) => SavingsGoalProvider(),
-          update: (_, financialManager, savingsProvider) =>
-              savingsProvider!..setFinancialManager(financialManager),
+        ChangeNotifierProvider(
+          create: (_) => SavingsGoalProvider()..initialize(),
         ),
 
         // Shopping List Provider (still uses local for now)
@@ -120,7 +113,6 @@ class MyApp extends StatelessWidget {
               '/': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const MainScreen(),
-             
             },
           );
         },
@@ -155,7 +147,7 @@ class _MainScreenState extends State<MainScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),

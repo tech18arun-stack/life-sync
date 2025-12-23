@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import '../models/income.dart';
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
@@ -289,7 +289,9 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
       }
 
       final income = Income(
-        id: widget.income?.id ?? const Uuid().v4(),
+        id: widget
+            .income
+            ?.id, // Don't generate UUID - let MongoDB create the _id
         description: _titleController.text,
         amount: double.parse(_amountController.text),
         source: _selectedSource,

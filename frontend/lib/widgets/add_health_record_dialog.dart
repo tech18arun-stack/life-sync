@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../models/health_record.dart';
 import '../providers/health_provider.dart';
 import '../utils/app_theme.dart';
@@ -368,7 +367,7 @@ class _AddHealthRecordDialogState extends State<AddHealthRecordDialog> {
           context,
           listen: false,
         ).addHealthRecord(record);
-        
+
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(

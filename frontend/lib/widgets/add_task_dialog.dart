@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../utils/app_theme.dart';
@@ -426,7 +426,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       }
 
       final task = Task(
-        id: const Uuid().v4(),
+        id: null, // Don't generate UUID - let MongoDB create the _id
         title: _titleController.text,
         description: _descriptionController.text.isEmpty
             ? null

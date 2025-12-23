@@ -40,12 +40,7 @@ dependencies:
   flutter_local_notifications: ^19.5.0
   timezone: ^0.10.1
 
-  # File & Backup
-  path_provider: ^2.1.1
-  file_picker: ^8.1.4
-  permission_handler: ^11.1.0
-  share_plus: ^10.1.1
-  csv: ^6.0.0
+
 
   # AI & Analytics
   google_generative_ai: ^0.2.2

@@ -37,9 +37,6 @@ class ReminderProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Backward compatibility alias
-  Future<void> initializeHive() async => initialize();
-
   Future<void> addReminder(Reminder reminder) async {
     try {
       final response = await _api.createReminder(reminder.toJson());

@@ -21,9 +21,6 @@ class ShoppingListProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Backward compatibility alias
-  Future<void> initializeHive() async => initialize();
-
   void addItem(ShoppingItem item) {
     _items.add(item);
     notifyListeners();

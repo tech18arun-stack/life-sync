@@ -207,10 +207,13 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                   color: isDark ? AppTheme.textTertiary : Colors.grey[500],
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  member.email,
-                  style: TextStyle(
-                    color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                Expanded(
+                  child: Text(
+                    member.email,
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -225,10 +228,15 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                     color: isDark ? AppTheme.textTertiary : Colors.grey[500],
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    member.relation!,
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                  Expanded(
+                    child: Text(
+                      member.relation!,
+                      style: TextStyle(
+                        color: isDark
+                            ? AppTheme.textSecondary
+                            : Colors.grey[600],
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -244,10 +252,15 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                     color: isDark ? AppTheme.textTertiary : Colors.grey[500],
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    member.phone!,
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                  Expanded(
+                    child: Text(
+                      member.phone!,
+                      style: TextStyle(
+                        color: isDark
+                            ? AppTheme.textSecondary
+                            : Colors.grey[600],
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -405,10 +418,12 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                   fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Please enter a password';
-                  if (value.length < 6)
+                  }
+                  if (value.length < 6) {
                     return 'Password must be at least 6 characters';
+                  }
                   return null;
                 },
               ),
@@ -422,8 +437,9 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                   fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
                 ),
                 validator: (value) {
-                  if (value != passwordController.text)
+                  if (value != passwordController.text) {
                     return 'Passwords do not match';
+                  }
                   return null;
                 },
               ),
@@ -592,7 +608,9 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -765,10 +783,12 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
                             : Colors.grey[50],
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Please enter a name';
-                        if (value.length < 2)
+                        }
+                        if (value.length < 2) {
                           return 'Name must be at least 2 characters';
+                        }
                         return null;
                       },
                     ),
@@ -796,8 +816,9 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
                             : Colors.grey[50],
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Please enter an email';
+                        }
                         if (!RegExp(
                           r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                         ).hasMatch(value)) {
@@ -838,10 +859,12 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
                               : Colors.grey[50],
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Please enter a password';
-                          if (value.length < 6)
+                          }
+                          if (value.length < 6) {
                             return 'Password must be at least 6 characters';
+                          }
                           return null;
                         },
                       ),
@@ -876,8 +899,9 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
                               : Colors.grey[50],
                         ),
                         validator: (value) {
-                          if (value != _passwordController.text)
+                          if (value != _passwordController.text) {
                             return 'Passwords do not match';
+                          }
                           return null;
                         },
                       ),

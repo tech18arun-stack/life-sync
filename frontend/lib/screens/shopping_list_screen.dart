@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/shopping_item.dart';
@@ -917,7 +917,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
                   final item = ShoppingItem(
-                    id: const Uuid().v4(),
+                    id: null, // Don't generate UUID - let MongoDB create the _id
                     name: nameController.text,
                     quantity: int.tryParse(quantityController.text) ?? 1,
                     category: selectedCategory,

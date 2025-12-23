@@ -847,7 +847,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           radius: 30,
                           backgroundColor: member.avatarColor != null
                               ? Color(int.parse(member.avatarColor!))
-                              : AppTheme.primaryColor.withOpacity(0.2),
+                              : AppTheme.primaryColor.withValues(alpha: 0.2),
                           child: Text(
                             member.name[0].toUpperCase(),
                             style: TextStyle(
@@ -1123,10 +1123,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Text(
-                    goal.emoji ?? '🎯',
-                    style: const TextStyle(fontSize: 24),
-                  ),
+                  Text(goal.emoji, style: const TextStyle(fontSize: 24)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

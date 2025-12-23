@@ -17,9 +17,6 @@ class FamilyEventProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Backward compatibility alias
-  Future<void> initializeHive() async => initialize();
-
   void addEvent(FamilyEvent event) {
     _events.add(event);
     notifyListeners();

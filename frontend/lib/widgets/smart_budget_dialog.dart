@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import '../models/budget.dart';
 import '../providers/financial_data_manager.dart';
 
@@ -174,7 +174,7 @@ class _SmartBudgetDialogState extends State<SmartBudgetDialog> {
         } else {
           // Create new
           final budget = Budget(
-            id: const Uuid().v4(),
+            id: null, // Don't generate UUID - let MongoDB create the _id
             category: entry.key,
             allocatedAmount: amount,
             month: now.month,

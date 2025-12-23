@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/savings_goal.dart';
 import '../providers/savings_goal_provider.dart';
@@ -592,7 +592,7 @@ class SavingsGoalsScreen extends StatelessWidget {
                 if (titleController.text.isNotEmpty &&
                     targetController.text.isNotEmpty) {
                   final goal = SavingsGoal(
-                    id: const Uuid().v4(),
+                    id: null, // Don't generate UUID - let MongoDB create the _id
                     name: titleController.text,
                     targetAmount: double.parse(targetController.text),
                     targetDate: targetDate,

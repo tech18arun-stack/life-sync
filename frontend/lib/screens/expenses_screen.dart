@@ -50,10 +50,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       final matchesSearch =
           _searchQuery.isEmpty ||
           expense.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (expense.description.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ) ??
-              false);
+          expense.description.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          );
       final matchesCategory =
           _selectedCategory == 'All' || expense.category == _selectedCategory;
       return matchesSearch && matchesCategory;
