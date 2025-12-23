@@ -6,7 +6,9 @@ import '../models/user.dart';
 
 /// Authentication Service for user login/register
 class AuthService {
-  static const String _baseUrl = 'http://localhost:3001/api/auth';
+  // static const String _baseUrl = 'http://localhost:3001/api/auth'; // Local development
+  static const String _baseUrl =
+      'https://life-sync.onrender.com/api/auth'; // Production (Render)
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 

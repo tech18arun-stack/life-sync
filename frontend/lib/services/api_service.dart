@@ -6,9 +6,11 @@ import 'auth_service.dart';
 /// API Service for MongoDB Backend Communication
 /// Handles all HTTP requests to the Node.js/Express backend
 class ApiService {
-  // Base URL for the API - change this for production
-  // static const String _baseUrl = 'http://10.0.2.2:3001/api'; // Android Emulator
-  static const String _baseUrl = 'http://localhost:3001/api'; // iOS/Web
+  // Base URL for the API
+  // static const String _baseUrl = 'http://10.0.2.2:3001/api'; // Android Emulator localhost
+  // static const String _baseUrl = 'http://localhost:3001/api'; // Local development
+  static const String _baseUrl =
+      'https://life-sync.onrender.com/api'; // Production (Render)
 
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();
