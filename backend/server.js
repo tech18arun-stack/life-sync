@@ -65,6 +65,29 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Root URL - Welcome page
+app.get('/', (req, res) => {
+    res.json({
+        name: 'LifeSync API',
+        version: '1.0.0',
+        description: 'Backend API for LifeSync Family Management App',
+        status: 'running',
+        endpoints: {
+            health: '/api/health',
+            auth: '/api/auth',
+            expenses: '/api/expenses',
+            incomes: '/api/incomes',
+            tasks: '/api/tasks',
+            budgets: '/api/budgets',
+            savings: '/api/savings',
+            reminders: '/api/reminders',
+            healthRecords: '/api/health-records',
+            familyMembers: '/api/family-members',
+            familyNumbers: '/api/family-numbers'
+        }
+    });
+});
+
 // Start Server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
