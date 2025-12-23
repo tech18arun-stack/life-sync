@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Flutter/Dart
+frontend/.dart_tool/
+frontend/.packages
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/pubspec.lock
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/web/build/
+frontend/linux/flutter/
+frontend/macos/Flutter/
+frontend/windows/flutter/
+
+# Build outputs
+*.apk
+*.aab
+*.ipa
+*.exe

@@ -1,0 +1,20 @@
+# render.yaml - Render Blueprint for LifeSync Backend
+# This file allows one-click deployment on Render
+
+services:
+  - type: web
+    name: lifesync-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
