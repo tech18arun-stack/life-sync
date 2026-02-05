@@ -1,6 +1,7 @@
-/// Expense model for MongoDB
+/// Expense model for Supabase
 class Expense {
   String? id;
+  String? userId;
   String description;
   double amount;
   String category;
@@ -8,6 +9,8 @@ class Expense {
   String? paymentMethod;
   String? notes;
   String? familyMemberId;
+  String? contactName;
+  String? phoneNumber;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -16,6 +19,7 @@ class Expense {
 
   Expense({
     this.id,
+    this.userId,
     required this.description,
     required this.amount,
     required this.category,
@@ -23,13 +27,16 @@ class Expense {
     this.paymentMethod,
     this.notes,
     this.familyMemberId,
+    this.contactName,
+    this.phoneNumber,
     this.createdAt,
     this.updatedAt,
   });
 
   factory Expense.fromJson(Map<String, dynamic> json) {
     return Expense(
-      id: json['_id'] ?? json['id'],
+      id: json['id'],
+      userId: json['user_id'],
       description: json['description'] ?? json['title'] ?? '',
       amount: (json['amount'] ?? 0).toDouble(),
       category: json['category'] ?? 'Other',
@@ -39,30 +46,36 @@ class Expense {
       paymentMethod: json['paymentMethod'],
       notes: json['notes'],
       familyMemberId: json['familyMemberId'],
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
+      contactName: json['contactName'],
+      phoneNumber: json['phoneNumber'],
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) '_id': id,
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
       'description': description,
       'amount': amount,
       'category': category,
       'date': date.toIso8601String(),
-      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
       if (notes != null) 'notes': notes,
-      if (familyMemberId != null) 'familyMemberId': familyMemberId,
+      if (familyMemberId != null) 'family_member_id': familyMemberId,
+      if (contactName != null) 'contact_name': contactName,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
     };
   }
 
   Expense copyWith({
     String? id,
+    String? userId,
     String? description,
     double? amount,
     String? category,
@@ -70,9 +83,12 @@ class Expense {
     String? paymentMethod,
     String? notes,
     String? familyMemberId,
+    String? contactName,
+    String? phoneNumber,
   }) {
     return Expense(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       description: description ?? this.description,
       amount: amount ?? this.amount,
       category: category ?? this.category,
@@ -80,6 +96,8 @@ class Expense {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       notes: notes ?? this.notes,
       familyMemberId: familyMemberId ?? this.familyMemberId,
+      contactName: contactName ?? this.contactName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
     );
   }
 }

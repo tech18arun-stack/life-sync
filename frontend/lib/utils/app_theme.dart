@@ -207,6 +207,10 @@ class AppTheme {
       case 'bills':
       case 'bill':
       case 'recharge':
+      case 'mobile recharge':
+      case 'dth':
+      case 'mobile bill':
+      case 'internet bill':
         return utilitiesColor;
       case 'shopping':
         return shoppingColor;
@@ -217,6 +221,10 @@ class AppTheme {
       case 'insurance':
         return insuranceColor;
       case 'groceries':
+      case 'vegetables':
+      case 'fruits':
+      case 'meat':
+      case 'dairy':
         return groceriesColor;
       case 'dining out':
         return diningOutColor;
@@ -238,12 +246,27 @@ class AppTheme {
       case 'debt payments':
       case 'loan':
       case 'emi':
+      case 'emi payment':
       case 'credit card':
         return warningColor;
       case 'kids':
+      case 'childcare':
+      case 'school':
+      case 'tuition':
+      case 'education fee':
         return const Color(0xFFFFCCBC);
       case 'pets':
+      case 'pet care':
         return const Color(0xFFD7CCC8);
+      case 'household':
+      case 'home maintenance':
+      case 'cleaning supplies':
+      case 'furniture':
+        return const Color(0xFFA1887F);
+      case 'family':
+      case 'family outing':
+      case 'family dinner':
+        return const Color(0xFF81C784);
       case 'emergency fund':
       case 'emergency':
         return errorColor;
@@ -387,6 +410,10 @@ class AppTheme {
     switch (category.toLowerCase()) {
       case 'food':
       case 'food & dining':
+      case 'vegetables':
+      case 'fruits':
+      case 'meat':
+      case 'dairy':
         return Icons.restaurant;
       case 'transport':
       case 'transportation':
@@ -433,16 +460,39 @@ class AppTheme {
       case 'debt payments':
       case 'loan':
       case 'emi':
+      case 'emi payment':
       case 'credit card':
         return Icons.money_off;
       case 'recharge':
+      case 'mobile recharge':
+      case 'mobile bill':
         return Icons.phone_android;
+      case 'dth':
+      case 'internet bill':
+        return Icons.router;
       case 'subscription':
         return Icons.subscriptions;
       case 'kids':
+      case 'childcare':
         return Icons.child_care;
       case 'pets':
+      case 'pet care':
         return Icons.pets;
+      case 'school':
+      case 'tuition':
+      case 'education fee':
+        return Icons.school;
+      case 'household':
+      case 'home maintenance':
+        return Icons.home_repair_service;
+      case 'cleaning supplies':
+        return Icons.clean_hands;
+      case 'furniture':
+        return Icons.chair_alt;
+      case 'family':
+      case 'family outing':
+      case 'family dinner':
+        return Icons.family_restroom;
       case 'car':
         return Icons.directions_car;
       case 'wedding':

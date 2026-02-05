@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui'; // For ImageFilter
+
 import '../providers/auth_provider.dart';
 import '../providers/financial_data_manager.dart';
 import '../providers/family_provider.dart';
@@ -60,7 +63,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -74,22 +79,202 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
 
     if (success && mounted) {
-      // Initialize all providers after successful registration
-      await _initializeProviders();
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      if (authProvider.error != null &&
+          authProvider.error!.contains('Please check your email')) {
+        _showEmailVerificationDialog();
+      } else {
+        try {
+          await _initializeProviders();
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Failed to initialize app data: $e',
+                  style: GoogleFonts.inter(),
+                ),
+                backgroundColor: AppTheme.errorColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.error ?? 'Registration failed'),
+          content: Text(
+            authProvider.error ?? 'Registration failed',
+            style: GoogleFonts.inter(),
+          ),
           backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
+  void _showEmailVerificationDialog() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: isDark ? AppTheme.cardColor : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.successColor,
+                      AppTheme.successColor.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.successColor.withValues(alpha: 0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const FaIcon(
+                  FontAwesomeIcons.envelopeCircleCheck,
+                  color: Colors.white,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Verify Your Email',
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppTheme.textPrimary : AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.email_outlined,
+                      color: AppTheme.primaryColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _emailController.text.trim(),
+                        style: GoogleFonts.inter(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'We\'ve sent a verification link to your email address. Please check your inbox and click the link to activate your admin account.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.warningColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const FaIcon(
+                      FontAwesomeIcons.lightbulb,
+                      color: AppTheme.warningColor,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Check your spam folder if you don\'t see the email.',
+                        style: GoogleFonts.inter(
+                          color: isDark
+                              ? AppTheme.textSecondary
+                              : Colors.grey[700],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Go to Login',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _initializeProviders() async {
+    // Same as LoginScreen
     final financialManager = Provider.of<FinancialDataManager>(
       context,
       listen: false,
@@ -127,10 +312,10 @@ class _RegisterScreenState extends State<RegisterScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [AppTheme.backgroundColor, AppTheme.surfaceColor]
+                ? [AppTheme.backgroundColor, const Color(0xFF1E1E2C)]
                 : [
-                    AppTheme.accentColor.withValues(alpha: 0.1),
-                    AppTheme.primaryColor.withValues(alpha: 0.05),
+                    const Color(0xFFE0F7FA), // Light Cyan
+                    const Color(0xFFE8EAF6), // Indigo 50
                     Colors.white,
                   ],
           ),
@@ -146,19 +331,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Header
                       _buildHeader(isDark),
                       const SizedBox(height: 32),
-
-                      // Register Form
                       _buildRegisterForm(authProvider, isDark),
                       const SizedBox(height: 24),
-
-                      // Register Button
                       _buildRegisterButton(authProvider),
                       const SizedBox(height: 24),
-
-                      // Login Link
                       _buildLoginLink(isDark),
                     ],
                   ),
@@ -174,15 +352,18 @@ class _RegisterScreenState extends State<RegisterScreen>
   Widget _buildHeader(bool isDark) {
     return Column(
       children: [
-        // App Icon
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: AppTheme.accentGradient,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF26A69A), Color(0xFF00796B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.accentColor.withValues(alpha: 0.3),
+                color: const Color(0xFF00796B).withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -195,213 +376,252 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
         ),
         const SizedBox(height: 24),
-
-        // Title
         Text(
-          'Create Account',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          'Create Admin Account',
+          style: GoogleFonts.inter(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+            color: const Color(0xFF00796B),
           ),
         ),
         const SizedBox(height: 8),
-
-        Text(
-          'Join LifeSync to manage your family life',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isDark ? AppTheme.textSecondary : Colors.grey[500],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00796B).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF00796B).withValues(alpha: 0.3),
+            ),
           ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const FaIcon(
+                FontAwesomeIcons.crown,
+                size: 14,
+                color: Color(0xFF00796B),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Administrator Account',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF00796B),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Create your admin account to manage family members',
+          style: GoogleFonts.inter(
+            color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
   Widget _buildRegisterForm(AuthProvider authProvider, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardColor : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppTheme.cardColor.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.white.withValues(alpha: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                blurRadius: 25,
+                offset: const Offset(0, 15),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            // Name Field
-            TextFormField(
-              controller: _nameController,
-              textCapitalization: TextCapitalization.words,
-              style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
-              decoration: InputDecoration(
-                labelText: 'Full Name',
-                hintText: 'Enter your full name',
-                prefixIcon: const Icon(Icons.person_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                _buildTextField(
+                  isDark,
+                  _nameController,
+                  'Full Name',
+                  Icons.person_outlined,
                 ),
-                filled: true,
-                fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your name';
-                }
-                if (value.length < 2) {
-                  return 'Name must be at least 2 characters';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Email Field
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
-              decoration: InputDecoration(
-                labelText: 'Email',
-                hintText: 'Enter your email',
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  isDark,
+                  _emailController,
+                  'Email',
+                  Icons.email_outlined,
                 ),
-                filled: true,
-                fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!RegExp(
-                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                ).hasMatch(value)) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Phone Field (Optional)
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
-              decoration: InputDecoration(
-                labelText: 'Phone (Optional)',
-                hintText: 'Enter your phone number',
-                prefixIcon: const Icon(Icons.phone_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  isDark,
+                  _phoneController,
+                  'Phone (Optional)',
+                  Icons.phone_outlined,
+                  isOptional: true,
                 ),
-                filled: true,
-                fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Password Field
-            TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: 'Create a password',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+                const SizedBox(height: 16),
+                _buildPasswordField(
+                  isDark,
+                  _passwordController,
+                  'Password',
+                  _obscurePassword,
+                  () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                const SizedBox(height: 16),
+                _buildPasswordField(
+                  isDark,
+                  _confirmPasswordController,
+                  'Confirm Password',
+                  _obscureConfirmPassword,
+                  () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
                   ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                filled: true,
-                fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a password';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // Confirm Password Field
-            TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
-              decoration: InputDecoration(
-                labelText: 'Confirm Password',
-                hintText: 'Re-enter your password',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () {
-                    setState(
-                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                    );
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                filled: true,
-                fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please confirm your password';
-                }
-                if (value != _passwordController.text) {
-                  return 'Passwords do not match';
-                }
-                return null;
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildTextField(
+    bool isDark,
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool isOptional = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: GoogleFonts.inter(
+        color: isDark ? AppTheme.textPrimary : Colors.black,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.inter(
+          color: isDark ? Colors.grey[400] : Colors.grey[700],
+        ),
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: isDark ? AppTheme.backgroundColor : Colors.grey[100],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF00796B), width: 2),
+        ),
+      ),
+      validator: (value) {
+        if (isOptional && (value == null || value.isEmpty)) {
+          return null;
+        }
+        if (!isOptional && (value == null || value.isEmpty)) {
+          return 'Required';
+        }
+        if (label == 'Email' &&
+            !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+          return 'Invalid email';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildPasswordField(
+    bool isDark,
+    TextEditingController controller,
+    String label,
+    bool obscure,
+    VoidCallback toggle,
+  ) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      style: GoogleFonts.inter(
+        color: isDark ? AppTheme.textPrimary : Colors.black,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.inter(
+          color: isDark ? Colors.grey[400] : Colors.grey[700],
+        ),
+        prefixIcon: const Icon(Icons.lock_outlined),
+        suffixIcon: IconButton(
+          icon: Icon(
+            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          ),
+          onPressed: toggle,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: isDark ? AppTheme.backgroundColor : Colors.grey[100],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF00796B), width: 2),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Required';
+        }
+        if (value.length < 6) {
+          return 'Min 6 chars';
+        }
+        if (label == 'Confirm Password' && value != _passwordController.text) {
+          return 'Mismatch';
+        }
+        return null;
+      },
+    );
+  }
+
   Widget _buildRegisterButton(AuthProvider authProvider) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00796B).withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: authProvider.isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.accentColor,
+          backgroundColor: const Color(0xFF00796B),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          elevation: 4,
-          shadowColor: AppTheme.accentColor.withValues(alpha: 0.4),
+          elevation: 0,
         ),
         child: authProvider.isLoading
             ? const SizedBox(
@@ -409,17 +629,20 @@ class _RegisterScreenState extends State<RegisterScreen>
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  color: Colors.white,
                 ),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FaIcon(FontAwesomeIcons.userPlus, size: 18),
-                  SizedBox(width: 12),
+                  const FaIcon(FontAwesomeIcons.userPlus, size: 18),
+                  const SizedBox(width: 12),
                   Text(
                     'Create Account',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -433,7 +656,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       children: [
         Text(
           'Already have an account? ',
-          style: TextStyle(
+          style: GoogleFonts.inter(
             color: isDark ? AppTheme.textSecondary : Colors.grey[600],
           ),
         ),
@@ -441,8 +664,8 @@ class _RegisterScreenState extends State<RegisterScreen>
           onTap: () => Navigator.pop(context),
           child: Text(
             'Login',
-            style: TextStyle(
-              color: AppTheme.primaryColor,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF00796B),
               fontWeight: FontWeight.bold,
             ),
           ),

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/family_member.dart';
-import '../services/api_service.dart';
+import '../services/supabase_service.dart';
 
 class FamilyProvider with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
 
   List<FamilyMember> _members = [];
   bool _isLoading = false;
@@ -19,7 +19,7 @@ class FamilyProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _api.getFamilyMembers();
+      final data = await _supabase.getFamilyMembers(); // Add userId filter if needed
       _members = data.map((m) => FamilyMember.fromJson(m)).toList();
     } catch (e) {
       _error = e.toString();
@@ -35,7 +35,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> addMember(FamilyMember member) async {
     try {
-      final response = await _api.createFamilyMember(member.toJson());
+      final response = await _supabase.createFamilyMember(member.toJson());
       final newMember = FamilyMember.fromJson(response);
       _members.add(newMember);
       notifyListeners();
@@ -47,7 +47,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> updateMember(FamilyMember member) async {
     try {
-      final response = await _api.updateFamilyMember(
+      final response = await _supabase.updateFamilyMember(
         member.id!,
         member.toJson(),
       );
@@ -65,7 +65,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> deleteMember(String id) async {
     try {
-      await _api.deleteFamilyMember(id);
+      await _supabase.deleteFamilyMember(id);
       _members.removeWhere((m) => m.id == id);
       notifyListeners();
     } catch (e) {

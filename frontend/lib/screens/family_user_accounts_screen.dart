@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
@@ -41,33 +42,117 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? AppTheme.backgroundColor
-          : const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Family User Accounts'),
-        backgroundColor: isDark
-            ? AppTheme.backgroundColor
-            : const Color(0xFFF5F5F5),
-        actions: [
-          IconButton(
-            icon: const FaIcon(FontAwesomeIcons.rotate),
-            onPressed: _loadFamilyMembers,
-            tooltip: 'Refresh',
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            expandedHeight: 140.0,
+            floating: true,
+            pinned: true,
+            centerTitle: false,
+            elevation: 0,
+            leading: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back_ios_new, size: 16),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const FaIcon(FontAwesomeIcons.rotate, size: 16),
+                ),
+                onPressed: _loadFamilyMembers,
+                tooltip: 'Refresh',
+              ),
+              const SizedBox(width: 16),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              title: Text(
+                'Family Accounts',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 20,
+                ),
+              ),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppTheme.primaryColor.withValues(alpha: 0.05),
+                      Theme.of(context).scaffoldBackgroundColor,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _isLoading
+                ? SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: const Center(child: CircularProgressIndicator()),
+                  )
+                : _familyMembers.isEmpty
+                ? SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: _buildEmptyState(isDark),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Manage Access',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _familyMembers.length,
+                          itemBuilder: (context, index) {
+                            final member = _familyMembers[index];
+                            return _buildMemberCard(member, isDark);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _familyMembers.isEmpty
-          ? _buildEmptyState(isDark)
-          : _buildMembersList(isDark),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_family_user',
         onPressed: () => _showAddMemberDialog(context),
-        icon: const FaIcon(FontAwesomeIcons.userPlus),
-        label: const Text('Add User'),
+        icon: const FaIcon(FontAwesomeIcons.userPlus, size: 16),
+        label: Text(
+          'Add User',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: AppTheme.primaryColor,
+        elevation: 4,
       ),
     );
   }
@@ -78,294 +163,269 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(30),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: FaIcon(
-              FontAwesomeIcons.userGroup,
-              size: 48,
-              color: AppTheme.primaryColor,
+              FontAwesomeIcons.users,
+              size: 50,
+              color: AppTheme.primaryColor.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'No Family User Accounts Yet',
-            style: Theme.of(context).textTheme.titleLarge,
+            'No Accounts Yet',
+            style: GoogleFonts.inter(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.titleLarge?.color,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Add family members with their own login credentials. They\'ll have access to the same data.',
+              'Add family members so they can log in and manage the household together.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+                height: 1.5,
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 30),
           ElevatedButton.icon(
             onPressed: () => _showAddMemberDialog(context),
-            icon: const FaIcon(FontAwesomeIcons.plus, size: 16),
+            icon: const FaIcon(FontAwesomeIcons.plus, size: 14),
             label: const Text('Add First User'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMembersList(bool isDark) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _familyMembers.length,
-      itemBuilder: (context, index) {
-        final member = _familyMembers[index];
-        return _buildMemberCard(member, isDark);
-      },
     );
   }
 
   Widget _buildMemberCard(User member, bool isDark) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardColor : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-          child: Text(
-            member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                member.name,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: isDark
-                      ? AppTheme.textPrimary
-                      : const Color(0xFF1A1A1A),
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: member.isActive
-                    ? AppTheme.successColor.withValues(alpha: 0.1)
-                    : AppTheme.errorColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                member.isActive ? 'Active' : 'Inactive',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: member.isActive
-                      ? AppTheme.successColor
-                      : AppTheme.errorColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => _showEditMemberDialog(context, member),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                FaIcon(
-                  FontAwesomeIcons.envelope,
-                  size: 12,
-                  color: isDark ? AppTheme.textTertiary : Colors.grey[500],
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    member.email,
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+                Hero(
+                  tag: 'avatar_${member.id}',
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    child: Center(
+                      child: Text(
+                        member.name.isNotEmpty
+                            ? member.name[0].toUpperCase()
+                            : '?',
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
                   ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              member.name,
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.color,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: member.isActive
+                                  ? AppTheme.successColor.withValues(alpha: 0.1)
+                                  : AppTheme.errorColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              member.isActive ? 'Active' : 'Inactive',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: member.isActive
+                                    ? AppTheme.successColor
+                                    : AppTheme.errorColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.email_outlined,
+                            size: 12,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              member.email,
+                              style: GoogleFonts.inter(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (member.relation != null &&
+                          member.relation!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          member.relation!,
+                          style: GoogleFonts.inter(
+                            color: AppTheme.primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                PopupMenuButton(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: Theme.of(
+                      context,
+                    ).iconTheme.color?.withValues(alpha: 0.5),
+                  ),
+                  color: Theme.of(context).cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  itemBuilder: (context) => [
+                    _buildPopupItem('edit', FontAwesomeIcons.pen, 'Edit', null),
+                    _buildPopupItem(
+                      'reset-password',
+                      FontAwesomeIcons.key,
+                      'Reset Password',
+                      null,
+                    ),
+                    _buildPopupItem(
+                      'toggle-active',
+                      member.isActive
+                          ? FontAwesomeIcons.userSlash
+                          : FontAwesomeIcons.userCheck,
+                      member.isActive ? 'Deactivate' : 'Activate',
+                      null,
+                    ),
+                    _buildPopupItem(
+                      'delete',
+                      FontAwesomeIcons.trash,
+                      'Delete',
+                      AppTheme.errorColor,
+                    ),
+                  ],
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'edit':
+                        _showEditMemberDialog(context, member);
+                        break;
+                      case 'reset-password':
+                        _showResetPasswordDialog(context, member);
+                        break;
+                      case 'toggle-active':
+                        _toggleMemberActive(member);
+                        break;
+                      case 'delete':
+                        _showDeleteConfirmation(context, member);
+                        break;
+                    }
+                  },
                 ),
               ],
             ),
-            if (member.relation != null && member.relation!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.heart,
-                    size: 12,
-                    color: isDark ? AppTheme.textTertiary : Colors.grey[500],
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      member.relation!,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppTheme.textSecondary
-                            : Colors.grey[600],
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (member.phone != null && member.phone!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.phone,
-                    size: 12,
-                    color: isDark ? AppTheme.textTertiary : Colors.grey[500],
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      member.phone!,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppTheme.textSecondary
-                            : Colors.grey[600],
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-        trailing: PopupMenuButton(
-          icon: Icon(
-            Icons.more_vert,
-            color: isDark ? AppTheme.textSecondary : Colors.grey[600],
           ),
-          color: isDark ? AppTheme.cardColor : Colors.white,
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.pen,
-                    size: 16,
-                    color: isDark ? AppTheme.textPrimary : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Edit',
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textPrimary : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'reset-password',
-              child: Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.key,
-                    size: 16,
-                    color: isDark ? AppTheme.textPrimary : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Reset Password',
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textPrimary : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'toggle-active',
-              child: Row(
-                children: [
-                  FaIcon(
-                    member.isActive
-                        ? FontAwesomeIcons.userSlash
-                        : FontAwesomeIcons.userCheck,
-                    size: 16,
-                    color: isDark ? AppTheme.textPrimary : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    member.isActive ? 'Deactivate' : 'Activate',
-                    style: TextStyle(
-                      color: isDark ? AppTheme.textPrimary : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  FaIcon(
-                    FontAwesomeIcons.trash,
-                    size: 16,
-                    color: AppTheme.errorColor,
-                  ),
-                  const SizedBox(width: 12),
-                  Text('Delete', style: TextStyle(color: AppTheme.errorColor)),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'edit':
-                _showEditMemberDialog(context, member);
-                break;
-              case 'reset-password':
-                _showResetPasswordDialog(context, member);
-                break;
-              case 'toggle-active':
-                _toggleMemberActive(member);
-                break;
-              case 'delete':
-                _showDeleteConfirmation(context, member);
-                break;
-            }
-          },
         ),
+      ),
+    );
+  }
+
+  PopupMenuItem _buildPopupItem(
+    String value,
+    IconData icon,
+    String text,
+    Color? color,
+  ) {
+    final finalColor = color ?? Theme.of(context).textTheme.bodyLarge?.color;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          SizedBox(width: 24, child: FaIcon(icon, size: 14, color: finalColor)),
+          const SizedBox(width: 12),
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: finalColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -390,95 +450,55 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
   }
 
   void _showResetPasswordDialog(BuildContext context, User member) {
-    final passwordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDark = themeProvider.isDarkMode;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.cardColor : Colors.white,
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Reset Password for ${member.name}',
-          style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
+          'Reset Password',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'New Password',
-                  prefixIcon: const Icon(Icons.lock_outlined),
-                  fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a password';
-                  }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: confirmPasswordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  prefixIcon: const Icon(Icons.lock_outlined),
-                  fillColor: isDark ? AppTheme.surfaceColor : Colors.grey[50],
-                ),
-                validator: (value) {
-                  if (value != passwordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
+        content: Text(
+          'Send a password reset email to ${member.email}?',
+          style: GoogleFonts.inter(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: isDark ? AppTheme.textSecondary : null),
-            ),
+            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context);
-                final result = await _authService.resetFamilyMemberPassword(
-                  memberId: member.id!,
-                  newPassword: passwordController.text,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        result['success']
-                            ? 'Password reset successfully'
-                            : result['error'],
-                      ),
-                      backgroundColor: result['success']
-                          ? AppTheme.successColor
-                          : AppTheme.errorColor,
+              Navigator.pop(context);
+              if (!mounted) return;
+              final result = await _authService.resetFamilyMemberPassword(
+                memberEmail: member.email,
+              );
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result['success']
+                          ? result['message'] ?? 'Email sent'
+                          : result['error'] ?? 'Failed',
                     ),
-                  );
-                }
+                    backgroundColor: result['success']
+                        ? AppTheme.successColor
+                        : AppTheme.errorColor,
+                  ),
+                );
               }
             },
-            child: const Text('Reset'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Send'),
           ),
         ],
       ),
@@ -508,36 +528,33 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
   }
 
   void _showDeleteConfirmation(BuildContext context, User member) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDark = themeProvider.isDarkMode;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.cardColor : Colors.white,
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Delete User Account',
-          style: TextStyle(color: isDark ? AppTheme.textPrimary : null),
+          'Delete Account',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'Are you sure you want to delete ${member.name}\'s account? This action cannot be undone.',
-          style: TextStyle(color: isDark ? AppTheme.textSecondary : null),
+          'Are you sure you want to delete ${member.name}? This cannot be undone.',
+          style: GoogleFonts.inter(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: isDark ? AppTheme.textSecondary : null),
-            ),
+            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
+              if (!mounted) return;
               final result = await _authService.deleteFamilyMemberUser(
                 member.id!,
               );
               if (mounted) {
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -551,7 +568,13 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                 if (result['success']) _loadFamilyMembers();
               }
             },
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -578,10 +601,8 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
   late TextEditingController _phoneController;
   late TextEditingController _relationController;
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   final AuthService _authService = AuthService();
 
@@ -603,7 +624,6 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
     _phoneController.dispose();
     _relationController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -613,11 +633,9 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
     }
 
     setState(() => _isLoading = true);
-
     Map<String, dynamic> result;
 
     if (widget.member == null) {
-      // Create new family member user
       result = await _authService.createFamilyMemberUser(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -630,7 +648,6 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
             : null,
       );
     } else {
-      // Update existing family member
       result = await _authService.updateFamilyMemberUser(
         memberId: widget.member!.id!,
         name: _nameController.text.trim(),
@@ -649,16 +666,6 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
       if (result['success']) {
         Navigator.pop(context);
         widget.onSaved();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.member == null
-                  ? 'Family user account created'
-                  : 'Account updated',
-            ),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -672,179 +679,79 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.cardColor : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
-          // Handle
+          const SizedBox(height: 12),
           Container(
-            margin: const EdgeInsets.only(top: 12),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.surfaceColor : Colors.grey[300],
+              color: Colors.grey.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Header
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    widget.member == null
-                        ? 'Add Family User Account'
-                        : 'Edit Family User',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    widget.member == null ? 'New Family Member' : 'Edit Member',
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? AppTheme.textPrimary : null,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.close,
-                    color: isDark ? AppTheme.textSecondary : null,
-                  ),
+                  icon: const Icon(Icons.close),
                 ),
               ],
             ),
           ),
-
-          // Form
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Info Banner
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          FaIcon(
-                            FontAwesomeIcons.circleInfo,
-                            color: AppTheme.primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Family members can log in with their own credentials and access all shared family data.',
-                              style: TextStyle(
-                                color: isDark
-                                    ? AppTheme.textSecondary
-                                    : Colors.grey[700],
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Name Field
-                    TextFormField(
+                    _buildTextField(
                       controller: _nameController,
-                      textCapitalization: TextCapitalization.words,
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textPrimary : null,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Full Name *',
-                        prefixIcon: const Icon(Icons.person_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? AppTheme.surfaceColor
-                            : Colors.grey[50],
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a name';
-                        }
-                        if (value.length < 2) {
-                          return 'Name must be at least 2 characters';
-                        }
-                        return null;
-                      },
+                      label: 'Full Name',
+                      icon: Icons.person_outline,
+                      validator: (v) => v!.isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // Email Field
-                    TextFormField(
+                    _buildTextField(
                       controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      enabled:
-                          widget.member ==
-                          null, // Can't change email for existing user
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textPrimary : null,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Email *',
-                        prefixIcon: const Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? AppTheme.surfaceColor
-                            : Colors.grey[50],
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter an email';
-                        }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
+                      label: 'Email Address',
+                      icon: Icons.email_outlined,
+                      enabled: widget.member == null,
+                      type: TextInputType.emailAddress,
+                      validator: (v) =>
+                          !v!.contains('@') ? 'Invalid email' : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // Password fields (only for new user)
                     if (widget.member == null) ...[
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        style: TextStyle(
-                          color: isDark ? AppTheme.textPrimary : null,
-                        ),
                         decoration: InputDecoration(
-                          labelText: 'Password *',
-                          prefixIcon: const Icon(Icons.lock_outlined),
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
                             onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword,
@@ -853,148 +760,96 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          filled: true,
-                          fillColor: isDark
-                              ? AppTheme.surfaceColor
-                              : Colors.grey[50],
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a password';
-                          }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        style: TextStyle(
-                          color: isDark ? AppTheme.textPrimary : null,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password *',
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                            onPressed: () => setState(
-                              () => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: isDark
-                              ? AppTheme.surfaceColor
-                              : Colors.grey[50],
-                        ),
-                        validator: (value) {
-                          if (value != _passwordController.text) {
-                            return 'Passwords do not match';
-                          }
-                          return null;
-                        },
+                        validator: (v) => v!.length < 6 ? 'Min 6 chars' : null,
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // Relation Field
-                    TextFormField(
-                      controller: _relationController,
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textPrimary : null,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Relation',
-                        hintText: 'e.g., Spouse, Child, Parent',
-                        prefixIcon: const Icon(Icons.favorite_border),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _relationController,
+                            label: 'Relation',
+                            icon: Icons.favorite_border,
+                          ),
                         ),
-                        filled: true,
-                        fillColor: isDark
-                            ? AppTheme.surfaceColor
-                            : Colors.grey[50],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _phoneController,
+                            label: 'Phone',
+                            icon: Icons.phone_outlined,
+                            type: TextInputType.phone,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                'Save Account',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Phone Field
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: TextStyle(
-                        color: isDark ? AppTheme.textPrimary : null,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Phone',
-                        prefixIcon: const Icon(Icons.phone_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? AppTheme.surfaceColor
-                            : Colors.grey[50],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
             ),
           ),
-
-          // Save Button
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
-                    : Text(
-                        widget.member == null
-                            ? 'Create Account'
-                            : 'Save Changes',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool enabled = true,
+    TextInputType type = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: type,
+      textCapitalization: label == 'Full Name' || label == 'Relation'
+          ? TextCapitalization.words
+          : TextCapitalization.none,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Theme.of(context).scaffoldBackgroundColor,
+      ),
+      validator: validator,
     );
   }
 }

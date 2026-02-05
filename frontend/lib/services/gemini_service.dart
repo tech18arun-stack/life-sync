@@ -1,15 +1,24 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/expense.dart';
 import '../models/budget.dart';
 import '../models/savings_goal.dart';
 
-class GeminiService {
+class GeminiService extends ChangeNotifier {
   static const String _apiKeyPref = 'gemini_api_key';
   static const String _aiEnabledPref = 'ai_features_enabled';
 
+  // Use a stable, capable model
+  static const String _modelName = 'gemini-1.5-flash';
+
   GenerativeModel? _model;
   String? _apiKey;
+  bool _isInitialized = false;
+
+  bool get isInitialized => _isInitialized;
+  String? get currentApiKey => _apiKey;
 
   // Initialize the service with stored API key
   Future<void> initialize() async {
@@ -17,7 +26,9 @@ class GeminiService {
     _apiKey = prefs.getString(_apiKeyPref);
 
     if (_apiKey != null && _apiKey!.isNotEmpty) {
-      _model = GenerativeModel(model: 'gemini-2.5-pro', apiKey: _apiKey!);
+      _model = GenerativeModel(model: _modelName, apiKey: _apiKey!);
+      _isInitialized = true;
+      notifyListeners();
     }
   }
 
@@ -29,18 +40,25 @@ class GeminiService {
       _apiKey = apiKey;
 
       // Initialize model with new key
-      _model = GenerativeModel(model: 'gemini-2.5-pro', apiKey: apiKey);
+      _model = GenerativeModel(model: _modelName, apiKey: apiKey);
 
       // Test the API key
       final isValid = await validateApiKey();
+
+      _isInitialized = isValid;
+      notifyListeners();
+
       return isValid;
     } catch (e) {
+      _isInitialized = false;
+      notifyListeners();
       return false;
     }
   }
 
   // Get stored API key
   Future<String?> getApiKey() async {
+    if (_apiKey != null) return _apiKey;
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_apiKeyPref);
   }
@@ -53,6 +71,7 @@ class GeminiService {
       final response = await _model!.generateContent([Content.text('Hello')]);
       return response.text != null;
     } catch (e) {
+      debugPrint('Gemini Validation Error: $e');
       return false;
     }
   }
@@ -67,6 +86,7 @@ class GeminiService {
   Future<void> setAIEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_aiEnabledPref, enabled);
+    notifyListeners();
   }
 
   // Get comprehensive AI status
@@ -74,9 +94,7 @@ class GeminiService {
     final isEnabled = await isAIEnabled();
     final apiKey = await getApiKey();
     final hasValidKey = apiKey != null && apiKey.isNotEmpty;
-    final modelName = _model != null
-        ? 'gemini-3-pro-preview'
-        : 'Not initialized';
+    final modelName = _model != null ? _modelName : 'Not initialized';
 
     return {
       'enabled': isEnabled,
@@ -120,14 +138,13 @@ class GeminiService {
 You are a financial advisor helping a family manage their budget.
 
 📊 FINANCIAL SUMMARY:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Monthly Income:    ₹${monthlyIncome.toStringAsFixed(0)}
 Total Expenses:    ₹${totalExpenses.toStringAsFixed(0)}
 Net Savings:       ₹${(monthlyIncome - totalExpenses).toStringAsFixed(0)}
-Savings Rate:      ${((monthlyIncome - totalExpenses) / monthlyIncome * 100).toStringAsFixed(1)}%
+Savings Rate:      ${monthlyIncome > 0 ? ((monthlyIncome - totalExpenses) / monthlyIncome * 100).toStringAsFixed(1) : 0}%
 
 📈 CATEGORY BREAKDOWN:
-${categoriesMap.entries.map((e) => '${e.key.padRight(15)} ₹${e.value.toStringAsFixed(0)}').join('\n')}
+${categoriesMap.entries.map((e) => '${e.key}: ₹${e.value.toStringAsFixed(0)}').join('\n')}
 
 💰 BUDGET STATUS:
 $budgetInfo
@@ -145,7 +162,7 @@ Please provide your analysis in this format:
 ⚠️ PRIORITY ACTION:
 [Most important thing to focus on this month]
 
-Keep it concise, encouraging, and actionable.
+Keep it concise, encouraging, and actionable. Do not use markdown bolding too heavily.
 ''';
 
     try {
@@ -156,7 +173,7 @@ Keep it concise, encouraging, and actionable.
     }
   }
 
-  // Calculate financial health score
+  // Calculate financial health score locally (deterministic)
   Map<String, dynamic> calculateFinancialHealth({
     required double monthlyIncome,
     required double monthlyExpenses,
@@ -166,6 +183,7 @@ Keep it concise, encouraging, and actionable.
     final savingsRate = monthlyIncome > 0
         ? ((monthlyIncome - monthlyExpenses) / monthlyIncome * 100)
         : 0.0;
+
     final budgetsOnTrack = budgets.where((b) => !b.isOverBudget).length;
     final budgetAdherence = budgets.isEmpty
         ? 0.0
@@ -178,27 +196,27 @@ Keep it concise, encouraging, and actionable.
     double score = 0;
 
     // Savings rate (40 points)
-    if (savingsRate >= 30) {
+    if (savingsRate >= 30)
       score += 40;
-    } else if (savingsRate >= 20) {
+    else if (savingsRate >= 20)
       score += 30;
-    } else if (savingsRate >= 10) {
+    else if (savingsRate >= 10)
       score += 20;
-    } else if (savingsRate > 0) {
+    else if (savingsRate > 0)
       score += 10;
-    }
 
     // Budget adherence (30 points)
     score += (budgetAdherence / 100) * 30;
 
     // Emergency fund (30 points)
-    if (emergencyFundMonths >= 6) {
+    if (emergencyFundMonths >= 6)
       score += 30;
-    } else if (emergencyFundMonths >= 3) {
+    else if (emergencyFundMonths >= 3)
       score += 20;
-    } else if (emergencyFundMonths >= 1) {
+    else if (emergencyFundMonths >= 1)
       score += 10;
-    }
+
+    score = score.clamp(0, 100);
 
     String rating;
     String message;
@@ -241,7 +259,6 @@ Keep it concise, encouraging, and actionable.
 
     final dailyTotals = <String, double>{};
     for (final expense in expenses) {
-      // Simple date key YYYY-MM-DD
       final dateKey = expense.date.toIso8601String().split('T')[0];
       dailyTotals[dateKey] = (dailyTotals[dateKey] ?? 0) + expense.amount;
     }
@@ -253,10 +270,7 @@ Keep it concise, encouraging, and actionable.
 
     final prompt =
         '''
-📊 SPENDING TREND ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Daily Spending Data (Last $days days):
+📊 SPENDING TREND ANALYSIS (Last $days days):
 $trendData
 
 Please analyze this data and provide:
@@ -271,13 +285,11 @@ Please analyze this data and provide:
 • Notable Spikes: [Any unusual spending days]
 
 💡 INSIGHTS:
-1. [First key insight about the pattern]
+1. [First key insight]
 2. [Second key insight]
 
 ✅ ACTION ITEM:
-[One specific, actionable recommendation based on the analysis]
-
-Keep the response concise and data-driven.
+[One specific, actionable recommendation]
 ''';
 
     try {
@@ -293,10 +305,9 @@ Keep the response concise and data-driven.
     required List<Expense> historicalExpenses,
     required int monthsBack,
   }) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
+    // Pre-aggregate data
     final monthlyData = <String, double>{};
     for (final expense in historicalExpenses) {
       final monthKey =
@@ -310,78 +321,90 @@ Keep the response concise and data-driven.
 
     final prompt =
         '''
-Based on the following monthly expense data, predict next month's expenses:
-
+Based on this monthly expense data:
 $dataStr
 
-Provide:
-1. Predicted amount (₹)
-2. Confidence level (High/Medium/Low)
-3. Brief reasoning (1 sentence)
-
-Format as JSON: {"amount": 12345, "confidence": "High", "reasoning": "..."}
+Predict next month's expenses. Return STRICT JSON only:
+{
+  "prediction": "12345",
+  "confidence": "High/Medium/Low",
+  "reasoning": "Brief one sentence reasoning"
+}
 ''';
 
     try {
+      // Force JSON mode if possible with generation config, but text prompting works for older versions
       final response = await _model!.generateContent([Content.text(prompt)]);
       final text = response.text ?? '{}';
-      // Basic JSON parsing (in a real app, use a proper JSON parser with error handling)
-      // This is a simplified example
+
       final cleanText = text
           .replaceAll('```json', '')
           .replaceAll('```', '')
           .trim();
-      // For now, return a placeholder if parsing fails, or implement robust parsing
-      return {
-        'prediction': cleanText, // Return raw text for now to be safe
-      };
+
+      try {
+        final Map<String, dynamic> json = jsonDecode(cleanText);
+        // Ensure prediction is a string or number converted to string for consistency
+        if (json['prediction'] is int || json['prediction'] is double) {
+          json['prediction'] = json['prediction'].toString();
+        }
+        return json;
+      } catch (e) {
+        // Fallback manual parse if JSON decode fails
+        return {
+          'prediction': 'N/A',
+          'confidence': 'Low',
+          'reasoning': 'Could not parse prediction.',
+        };
+      }
     } catch (e) {
       return {'error': e.toString()};
     }
   }
 
-  // Get category insights
+  // Category insights
   Future<String> getCategoryInsights({
     required String category,
     required List<Expense> categoryExpenses,
   }) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
     final total = categoryExpenses.fold<double>(0, (sum, e) => sum + e.amount);
     final count = categoryExpenses.length;
     final avg = count > 0 ? total / count : 0;
 
+    final recent = categoryExpenses
+        .take(5)
+        .map((e) => '- ₹${e.amount} on ${e.date.toString().split(' ')[0]}')
+        .join('\n');
+
     final prompt =
         '''
 Analyze spending in category "$category":
 Total: ₹$total
-Transaction Count: $count
-Average per transaction: ₹${avg.toStringAsFixed(2)}
+Count: $count
+Avg: ₹${avg.toStringAsFixed(2)}
 
-Recent transactions:
-${categoryExpenses.take(5).map((e) => '- ₹${e.amount} on ${e.date.toString().split(' ')[0]}').join('\n')}
+Recent:
+$recent
 
-Provide 2 specific insights or tips for this category.
+Provide 2 short, specific 💡 tips for this category.
 ''';
 
     try {
       final response = await _model!.generateContent([Content.text(prompt)]);
-      return response.text ?? 'No insights available.';
+      return response.text ?? 'No message.';
     } catch (e) {
       return 'Could not generate insights.';
     }
   }
 
-  // Analyze budget performance and suggest optimizations
+  // Budget Performance
   Future<String> analyzeBudgetPerformance({
     required List<Budget> budgets,
     required double totalIncome,
   }) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
     final budgetSummary = budgets
         .map((b) {
@@ -391,111 +414,61 @@ Provide 2 specific insights or tips for this category.
 
     final prompt =
         '''
-📊 BUDGET PERFORMANCE ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Monthly Income: ₹${totalIncome.toStringAsFixed(0)}
-
-Budget Status by Category:
+Analyze this budget performance (Income: ₹${totalIncome.toStringAsFixed(0)}):
 $budgetSummary
 
-Please provide:
-
-✨ PERFORMANCE SUMMARY:
-[2-3 sentence overview of budget adherence]
-
-📈 TOP PERFORMERS:
-• [Category doing well and why]
-• [Another strong category]
-
-⚠️ AREAS FOR IMPROVEMENT:
-• [Category needing attention]
-• [Specific recommendation]
-
-💡 OPTIMIZATION TIPS:
-1. [First actionable tip to improve budget management]
-2. [Second tip for better allocation]
-3. [Third tip for future planning]
-
-🎯 RECOMMENDED ACTION:
-[One specific step to take this month]
-
-Keep analysis concise and actionable.
+Provide:
+✨ PERFORMANCE SUMMARY: [One sentence]
+📈 BEST CATEGORY: [Name and why]
+⚠️ NEEDS ATTENTION: [Name and why]
+💡 TIP: [One key optimization tip]
 ''';
 
     try {
       final response = await _model!.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Unable to analyze budget performance.';
+      return response.text ?? 'Analysis unavailable.';
     } catch (e) {
       throw Exception('Failed to analyze budget: ${e.toString()}');
     }
   }
 
-  // Generate savings goal insights and motivation
+  // Savings Goals Analysis
   Future<String> analyzeSavingsGoals({
     required List<SavingsGoal> goals,
     required double monthlyIncome,
     required double monthlyExpenses,
   }) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
     final goalsSummary = goals
         .map((g) {
-          return '${g.title}: ₹${g.currentAmount}/₹${g.targetAmount} (${g.percentageCompleted.toStringAsFixed(1)}%) - ${g.daysRemaining} days left';
+          return '${g.title}: ₹${g.currentAmount}/₹${g.targetAmount} (${g.percentageCompleted.toStringAsFixed(1)}%)';
         })
         .join('\n');
 
-    final monthlySavings = monthlyIncome - monthlyExpenses;
+    final savings = monthlyIncome - monthlyExpenses;
 
     final prompt =
         '''
-💰 SAVINGS GOALS ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Monthly Income: ₹${monthlyIncome.toStringAsFixed(0)}
-Monthly Expenses: ₹${monthlyExpenses.toStringAsFixed(0)}
-Available for Savings: ₹${monthlySavings.toStringAsFixed(0)}
-
-Active Goals:
+Analyze savings (Available: ₹${savings.toStringAsFixed(0)}):
 $goalsSummary
 
-Please provide:
-
-🎯 PROGRESS OVERVIEW:
-[Brief assessment of overall savings progress]
-
-🌟 HIGHLIGHTS:
-• [Goal making great progress]
-• [Positive achievement or milestone]
-
-⏰ URGENT ATTENTION NEEDED:
-• [Goal requiring immediate action, if any]
-
-💡 SMART STRATEGIES:
-1. [Strategy to accelerate savings]
-2. [Tip for better allocation across goals]
-3. [Motivation or milestone idea]
-
-📊 MONTHLY ALLOCATION SUGGESTION:
-[Recommend how to split ₹${monthlySavings.toStringAsFixed(0)} across goals]
-
-🚀 MOTIVATIONAL MESSAGE:
-[Brief encouraging message about their savings journey]
-
-Be motivating and practical.
+Provide:
+🎯 STATUS: [Brief overview]
+🔥 HOT STREAK: [Best goal]
+🚀 MOTIVATION: [One sentence encouragement]
+💡 STRATEGY: [One tip to save faster]
 ''';
 
     try {
       final response = await _model!.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Unable to analyze savings goals.';
+      return response.text ?? 'Analysis unavailable.';
     } catch (e) {
       throw Exception('Failed to analyze savings: ${e.toString()}');
     }
   }
 
-  // Generate comprehensive report insights
+  // Generate report insights
   Future<String> generateReportInsights({
     required double totalIncome,
     required double totalExpenses,
@@ -503,117 +476,62 @@ Be motivating and practical.
     required double lastMonthIncome,
     required double lastMonthExpenses,
   }) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
-    final categoryBreakdown = categoryExpenses.entries
-        .map(
-          (e) =>
-              '${e.key}: ₹${e.value.toStringAsFixed(0)} (${(e.value / totalExpenses * 100).toStringAsFixed(1)}%)',
-        )
+    final topCategories = categoryExpenses.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final categorySummary = topCategories
+        .take(5)
+        .map((e) => '${e.key}: ₹${e.value.toStringAsFixed(0)}')
         .join('\n');
-
-    final incomeChange = totalIncome - lastMonthIncome;
-    final expenseChange = totalExpenses - lastMonthExpenses;
 
     final prompt =
         '''
-📈 FINANCIAL REPORT ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINANCIAL REPORT:
+Current Month: Inc ₹$totalIncome, Exp ₹$totalExpenses
+Last Month: Inc ₹$lastMonthIncome, Exp ₹$lastMonthExpenses
 
-CURRENT MONTH:
-━━━━━━━━━━━━━━━━━
-Income: ₹${totalIncome.toStringAsFixed(0)}
-Expenses: ₹${totalExpenses.toStringAsFixed(0)}
-Net Balance: ₹${(totalIncome - totalExpenses).toStringAsFixed(0)}
+Top Expenses:
+$categorySummary
 
-LAST MONTH:
-━━━━━━━━━━━━━━━━━
-Income: ₹${lastMonthIncome.toStringAsFixed(0)}
-Expenses: ₹${lastMonthExpenses.toStringAsFixed(0)}
-
-CHANGES:
-━━━━━━━━━━━━━━━━━
-Income Change: ₹${incomeChange.toStringAsFixed(0)} (${lastMonthIncome > 0 ? ((incomeChange / lastMonthIncome) * 100).toStringAsFixed(1) : 0}%)
-Expense Change: ₹${expenseChange.toStringAsFixed(0)} (${lastMonthExpenses > 0 ? ((expenseChange / lastMonthExpenses) * 100).toStringAsFixed(1) : 0}%)
-
-EXPENSE BREAKDOWN:
-$categoryBreakdown
-
-Please provide:
-
-✨ EXECUTIVE SUMMARY:
-[2-3 sentence overview of financial health this month]
-
-📊 KEY METRICS:
-• Savings Rate: [Calculate percentage]
-• Top Spending Category: [Identify highest]
-• Month-over-Month Trend: [Improving/Declining/Stable]
-
-🔍 DETAILED INSIGHTS:
-1. [Key observation about income]
-2. [Key observation about expenses]
-3. [Notable trend or pattern]
-
-💡 RECOMMENDATIONS:
-1. [Actionable financial tip]
-2. [Area to focus on next month]
-3. [Long-term improvement suggestion]
-
-⚠️ WARNINGS (if any):
-[Any concerning trends or immediate attention needed]
-
-🎯 FOCUS FOR NEXT MONTH:
-[One specific goal to improve financial position]
-
-Be analytical, professional, and solution-oriented.
+Provide:
+✨ SUMMARY: [2 sentences]
+📊 TENDENCY: [Better/Worse vs last month and why]
+💡 ADVICE: [1 key recommendation]
 ''';
 
     try {
       final response = await _model!.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Unable to generate report insights.';
+      return response.text ?? 'Report unavailable.';
     } catch (e) {
       throw Exception('Failed to generate report: ${e.toString()}');
     }
   }
 
-  // Suggest reminders based on spending history
+  // Suggest Reminders
   Future<String> suggestReminders({required List<Expense> expenses}) async {
-    if (_model == null) {
-      throw Exception('Gemini API not initialized.');
-    }
+    if (_model == null) throw Exception('Gemini API not initialized.');
 
-    // Group expenses by description to find recurring ones
-    final expenseDescriptions = expenses
-        .map(
-          (e) =>
-              '${e.description.isNotEmpty ? e.description : e.category}: ₹${e.amount} on ${e.date.toString().split(' ')[0]}',
-        )
+    // Simplification for token limits
+    final simplifiedExpenses = expenses
+        .take(30)
+        .map((e) => '${e.description}: ₹${e.amount}')
         .join('\n');
 
     final prompt =
         '''
-Based on the following expense history, suggest potential recurring reminders (bills, subscriptions, EMIs, etc.).
-Look for patterns in descriptions and amounts.
+Suggest recurring reminders (bills/subs) based on these expenses:
+$simplifiedExpenses
 
-Expense History:
-$expenseDescriptions
-
-Please provide suggestions in this format:
-1. [Title] - [Type] - [Approx Amount] - [Frequency]
-   Reason: [Why you think this is a recurring expense]
-
-Example:
-1. Netflix - Subscription - ₹199 - Monthly
-   Reason: Seen multiple times with same amount.
-
-Provide at least 3 suggestions if possible. If no clear patterns, suggest common household reminders.
+Format:
+1. [Name] - [Type] - [Amount]
+   Reason: [Why]
 ''';
 
     try {
       final response = await _model!.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Unable to suggest reminders.';
+      return response.text ?? 'No suggestions.';
     } catch (e) {
       throw Exception('Failed to suggest reminders: ${e.toString()}');
     }

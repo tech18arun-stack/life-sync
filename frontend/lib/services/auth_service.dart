@@ -1,14 +1,11 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
-import '../models/user.dart';
+import '../models/user.dart' as AppUser;
 
-/// Authentication Service for user login/register
+/// Authentication Service for user login/register using Supabase
 class AuthService {
-  // static const String _baseUrl = 'http://localhost:3001/api/auth'; // Local development
-  static const String _baseUrl =
-      'https://life-sync.onrender.com/api/auth'; // Production (Render)
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 
@@ -18,18 +15,17 @@ class AuthService {
   AuthService._internal();
 
   String? _token;
-  User? _currentUser;
+  AppUser.User? _currentUser;
 
   // Getters
   String? get token => _token;
-  User? get currentUser => _currentUser;
+  AppUser.User? get currentUser => _currentUser;
   bool get isLoggedIn => _token != null && _currentUser != null;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get isClient => _currentUser?.isClient ?? false;
 
-  // Headers with auth token
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_token != null) 'Authorization': 'Bearer $_token',
-  };
+  // Get Supabase client
+  SupabaseClient get client => Supabase.instance.client;
 
   /// Initialize auth service - check for stored token
   Future<bool> initialize() async {
@@ -39,15 +35,18 @@ class AuthService {
       final userJson = prefs.getString(_userKey);
 
       if (_token != null && userJson != null) {
-        _currentUser = User.fromJson(jsonDecode(userJson));
+        _currentUser = AppUser.User.fromJson(jsonDecode(userJson));
 
-        // Verify token is still valid
-        final isValid = await verifyToken();
-        if (!isValid) {
+        // Check if user session is still valid
+        final session = client.auth.currentSession;
+        if (session != null) {
+          // Refresh user profile from database
+          await _loadUserProfile();
+          return true;
+        } else {
           await logout();
           return false;
         }
-        return true;
       }
       return false;
     } catch (e) {
@@ -56,28 +55,7 @@ class AuthService {
     }
   }
 
-  /// Verify current token is valid
-  Future<bool> verifyToken() async {
-    if (_token == null) return false;
-
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/me'),
-        headers: _headers,
-      );
-
-      if (response.statusCode == 200) {
-        _currentUser = User.fromJson(jsonDecode(response.body));
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint('Error verifying token: $e');
-      return false;
-    }
-  }
-
-  /// Register new user
+  /// Register new user (creates ADMIN user)
   Future<Map<String, dynamic>> register({
     required String name,
     required String email,
@@ -85,33 +63,45 @@ class AuthService {
     String? phone,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          if (phone != null) 'phone': phone,
-        }),
+      final response = await client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': name, 'phone': phone},
+        emailRedirectTo: _getAppDeepLinkScheme(),
       );
 
-      final data = jsonDecode(response.body);
+      final user = response.user;
+      if (user != null) {
+        _token = response.session?.accessToken;
 
-      if (response.statusCode == 201) {
-        _token = data['token'];
-        _currentUser = User.fromJson(data['user']);
-        await _saveAuthData();
-        return {'success': true, 'user': _currentUser};
-      } else {
+        // Create user profile as ADMIN
+        _currentUser = AppUser.User(
+          id: user.id,
+          name: name,
+          email: user.email ?? '',
+          phone: phone ?? '',
+          userType: 'admin', // Users registering directly are ADMIN
+          role: 'owner',
+          createdAt: DateTime.now(),
+        );
+
+        // Only save auth data if session exists (auto-confirm enabled in Supabase)
+        if (_token != null) {
+          await _createUserProfile(_currentUser!);
+          await _saveAuthData();
+        }
+
         return {
-          'success': false,
-          'error': data['error'] ?? 'Registration failed',
+          'success': true,
+          'user': _currentUser,
+          'requiresConfirmation': response.session == null,
         };
+      } else {
+        return {'success': false, 'error': 'Registration failed'};
       }
     } catch (e) {
       debugPrint('Error registering: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -121,36 +111,52 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+      final response = await client.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      final data = jsonDecode(response.body);
+      final user = response.user;
+      if (user != null) {
+        _token = response.session?.accessToken;
 
-      if (response.statusCode == 200) {
-        _token = data['token'];
-        _currentUser = User.fromJson(data['user']);
+        // Load user profile from database to get user type
+        await _loadUserProfile();
+
+        if (_currentUser == null) {
+          // If no profile exists, create one (legacy user or first login)
+          _currentUser = AppUser.User(
+            id: user.id,
+            name: user.userMetadata?['name'] ?? '',
+            email: user.email ?? '',
+            phone: user.userMetadata?['phone'] ?? '',
+            userType: 'admin', // Default to admin for existing users
+            role: 'owner',
+            createdAt: DateTime.now(),
+          );
+          await _createUserProfile(_currentUser!);
+        }
+
+        // Update last login
+        await _updateLastLogin();
         await _saveAuthData();
+
         return {'success': true, 'user': _currentUser};
       } else {
-        return {'success': false, 'error': data['error'] ?? 'Login failed'};
+        return {'success': false, 'error': 'Login failed'};
       }
     } catch (e) {
       debugPrint('Error logging in: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
   /// Logout user
   Future<void> logout() async {
     try {
-      if (_token != null) {
-        await http.post(Uri.parse('$_baseUrl/logout'), headers: _headers);
-      }
+      await client.auth.signOut();
     } catch (e) {
-      debugPrint('Error during logout API call: $e');
+      debugPrint('Error during logout: $e');
     }
 
     _token = null;
@@ -161,6 +167,62 @@ class AuthService {
     await prefs.remove(_userKey);
   }
 
+  /// Create user profile in database
+  Future<void> _createUserProfile(AppUser.User user) async {
+    try {
+      await client.from('user_profiles').upsert({
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'phone': user.phone,
+        'avatar': user.avatar,
+        'user_type': user.userType,
+        'role': user.role,
+        'parent_user_id': user.parentUserId,
+        'family_id': user.familyId,
+        'relation': user.relation,
+        'is_active': user.isActive,
+      });
+    } catch (e) {
+      debugPrint('Error creating user profile: $e');
+    }
+  }
+
+  /// Load user profile from database
+  Future<void> _loadUserProfile() async {
+    try {
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await client
+          .from('user_profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (response != null) {
+        _currentUser = AppUser.User.fromJson(response);
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile: $e');
+    }
+  }
+
+  /// Update last login timestamp
+  Future<void> _updateLastLogin() async {
+    try {
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await client
+          .from('user_profiles')
+          .update({'last_login': DateTime.now().toIso8601String()})
+          .eq('id', userId);
+    } catch (e) {
+      debugPrint('Error updating last login: $e');
+    }
+  }
+
   /// Update user profile
   Future<Map<String, dynamic>> updateProfile({
     String? name,
@@ -168,28 +230,37 @@ class AuthService {
     String? avatar,
   }) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/me'),
-        headers: _headers,
-        body: jsonEncode({
-          if (name != null) 'name': name,
-          if (phone != null) 'phone': phone,
-          if (avatar != null) 'avatar': avatar,
-        }),
+      final updates = <String, dynamic>{};
+      if (name != null) updates['name'] = name;
+      if (phone != null) updates['phone'] = phone;
+      if (avatar != null) updates['avatar'] = avatar;
+
+      // Update Supabase auth metadata
+      final response = await client.auth.updateUser(
+        UserAttributes(data: updates),
       );
 
-      final data = jsonDecode(response.body);
+      // Also update user_profiles table
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        await client.from('user_profiles').update(updates).eq('id', userId);
+      }
 
-      if (response.statusCode == 200) {
-        _currentUser = User.fromJson(data);
+      final user = response.user;
+      if (user != null) {
+        _currentUser = _currentUser?.copyWith(
+          name: name ?? _currentUser?.name,
+          phone: phone ?? _currentUser?.phone,
+          avatar: avatar ?? _currentUser?.avatar,
+        );
         await _saveAuthData();
         return {'success': true, 'user': _currentUser};
       } else {
-        return {'success': false, 'error': data['error'] ?? 'Update failed'};
+        return {'success': false, 'error': 'Update failed'};
       }
     } catch (e) {
       debugPrint('Error updating profile: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -199,29 +270,17 @@ class AuthService {
     required String newPassword,
   }) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/change-password'),
-        headers: _headers,
-        body: jsonEncode({
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'message': data['message']};
-      } else {
-        return {
-          'success': false,
-          'error': data['error'] ?? 'Password change failed',
-        };
-      }
+      await client.auth.updateUser(UserAttributes(password: newPassword));
+      return {'success': true, 'message': 'Password changed successfully'};
     } catch (e) {
       debugPrint('Error changing password: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
+  }
+
+  /// Helper method to get the app's deep link scheme
+  String _getAppDeepLinkScheme() {
+    return 'lifesync://login-callback';
   }
 
   /// Save auth data to local storage
@@ -235,9 +294,10 @@ class AuthService {
     }
   }
 
-  // ===== FAMILY MEMBER USER MANAGEMENT =====
+  // ===== FAMILY MEMBER (CLIENT) USER MANAGEMENT =====
 
-  /// Create a family member with login credentials
+  /// Create a family member with login credentials (CLIENT user)
+  /// Only ADMIN users can create CLIENT users
   Future<Map<String, dynamic>> createFamilyMemberUser({
     required String name,
     required String email,
@@ -245,59 +305,118 @@ class AuthService {
     String? phone,
     String? relation,
   }) async {
+    // Check if current user is admin
+    if (!isAdmin) {
+      return {
+        'success': false,
+        'error': 'Only admin users can create family member accounts',
+      };
+    }
+
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/family-members'),
-        headers: _headers,
-        body: jsonEncode({
+      // First, we need to use Supabase Admin API or Edge Functions
+      // For now, we'll create the user through the normal signup flow
+      // but mark them as a client user in the profile
+
+      final adminId = _currentUser?.id;
+      final familyId =
+          _currentUser?.familyId ??
+          adminId; // Use admin's ID as family ID if none exists
+
+      // Create the auth user (they'll need to confirm email separately)
+      final response = await client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
           'name': name,
-          'email': email,
-          'password': password,
-          if (phone != null) 'phone': phone,
-          if (relation != null) 'relation': relation,
-        }),
+          'phone': phone,
+          'user_type': 'client',
+          'parent_user_id': adminId,
+        },
       );
 
-      final data = jsonDecode(response.body);
+      final newUser = response.user;
+      if (newUser != null) {
+        // Create user profile as CLIENT
+        final clientProfile = AppUser.User(
+          id: newUser.id,
+          name: name,
+          email: email,
+          phone: phone,
+          userType: 'client', // This is a CLIENT user
+          role: 'member',
+          parentUserId: adminId, // Link to the admin who created them
+          familyId: familyId,
+          relation: relation,
+          createdAt: DateTime.now(),
+        );
 
-      if (response.statusCode == 201) {
+        // Insert profile into database
+        await client.from('user_profiles').insert({
+          'id': newUser.id,
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'user_type': 'client',
+          'role': 'member',
+          'parent_user_id': adminId,
+          'family_id': familyId,
+          'relation': relation,
+          'is_active': true,
+        });
+
+        // Update admin's family_id if not set
+        if (_currentUser?.familyId == null) {
+          await client
+              .from('user_profiles')
+              .update({'family_id': familyId})
+              .eq('id', adminId!);
+          _currentUser = _currentUser?.copyWith(familyId: familyId);
+          await _saveAuthData();
+        }
+
         return {
           'success': true,
-          'familyMember': User.fromJson(data['familyMember']),
-          'message': data['message'],
+          'user': clientProfile,
+          'message':
+              'Family member account created. They will need to verify their email.',
         };
       } else {
         return {
           'success': false,
-          'error': data['error'] ?? 'Failed to create family member',
+          'error': 'Failed to create family member account',
         };
       }
     } catch (e) {
       debugPrint('Error creating family member user: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Get all family member users
-  Future<List<User>> getFamilyMemberUsers() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/family-members'),
-        headers: _headers,
-      );
+  /// Get all family member (client) users created by this admin
+  Future<List<AppUser.User>> getFamilyMemberUsers() async {
+    if (!isAdmin) return [];
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => User.fromJson(json)).toList();
-      }
-      return [];
+    try {
+      final adminId = _currentUser?.id;
+      if (adminId == null) return [];
+
+      final response = await client
+          .from('user_profiles')
+          .select()
+          .eq('parent_user_id', adminId)
+          .eq('user_type', 'client');
+
+      return (response as List)
+          .map((json) => AppUser.User.fromJson(json))
+          .toList();
     } catch (e) {
       debugPrint('Error getting family member users: $e');
       return [];
     }
   }
 
-  /// Update family member user
+  /// Update family member user profile
   Future<Map<String, dynamic>> updateFamilyMemberUser({
     required String memberId,
     String? name,
@@ -305,83 +424,88 @@ class AuthService {
     String? relation,
     bool? isActive,
   }) async {
+    if (!isAdmin) {
+      return {
+        'success': false,
+        'error': 'Only admin users can update family member accounts',
+      };
+    }
+
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/family-members/$memberId'),
-        headers: _headers,
-        body: jsonEncode({
-          if (name != null) 'name': name,
-          if (phone != null) 'phone': phone,
-          if (relation != null) 'relation': relation,
-          if (isActive != null) 'isActive': isActive,
-        }),
-      );
+      final updates = <String, dynamic>{};
+      if (name != null) updates['name'] = name;
+      if (phone != null) updates['phone'] = phone;
+      if (relation != null) updates['relation'] = relation;
+      if (isActive != null) updates['is_active'] = isActive;
 
-      final data = jsonDecode(response.body);
+      await client
+          .from('user_profiles')
+          .update(updates)
+          .eq('id', memberId)
+          .eq('parent_user_id', _currentUser?.id ?? '');
 
-      if (response.statusCode == 200) {
-        return {'success': true, 'user': User.fromJson(data)};
-      } else {
-        return {
-          'success': false,
-          'error': data['error'] ?? 'Failed to update family member',
-        };
-      }
+      return {'success': true, 'message': 'Family member updated successfully'};
     } catch (e) {
       debugPrint('Error updating family member user: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Delete family member user
+  /// Deactivate/activate a family member user account
+  Future<Map<String, dynamic>> toggleFamilyMemberStatus(
+    String memberId,
+    bool isActive,
+  ) async {
+    return updateFamilyMemberUser(memberId: memberId, isActive: isActive);
+  }
+
+  /// Delete family member user (soft delete by deactivating)
   Future<Map<String, dynamic>> deleteFamilyMemberUser(String memberId) async {
+    if (!isAdmin) {
+      return {
+        'success': false,
+        'error': 'Only admin users can delete family member accounts',
+      };
+    }
+
     try {
-      final response = await http.delete(
-        Uri.parse('$_baseUrl/family-members/$memberId'),
-        headers: _headers,
-      );
+      // Soft delete by deactivating the account
+      await client
+          .from('user_profiles')
+          .update({'is_active': false})
+          .eq('id', memberId)
+          .eq('parent_user_id', _currentUser?.id ?? '');
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'message': data['message']};
-      } else {
-        return {
-          'success': false,
-          'error': data['error'] ?? 'Failed to delete family member',
-        };
-      }
+      return {'success': true, 'message': 'Family member account deactivated'};
     } catch (e) {
       debugPrint('Error deleting family member user: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Reset family member password
+  /// Request password reset for a family member
   Future<Map<String, dynamic>> resetFamilyMemberPassword({
-    required String memberId,
-    required String newPassword,
+    required String memberEmail,
   }) async {
+    if (!isAdmin) {
+      return {
+        'success': false,
+        'error': 'Only admin users can reset family member passwords',
+      };
+    }
+
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/family-members/$memberId/reset-password'),
-        headers: _headers,
-        body: jsonEncode({'newPassword': newPassword}),
+      await client.auth.resetPasswordForEmail(
+        memberEmail,
+        redirectTo: _getAppDeepLinkScheme(),
       );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'message': data['message']};
-      } else {
-        return {
-          'success': false,
-          'error': data['error'] ?? 'Failed to reset password',
-        };
-      }
+      return {
+        'success': true,
+        'message': 'Password reset email sent to $memberEmail',
+      };
     } catch (e) {
       debugPrint('Error resetting family member password: $e');
-      return {'success': false, 'error': 'Network error. Please try again.'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 }

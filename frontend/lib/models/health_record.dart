@@ -1,6 +1,7 @@
 /// HealthRecord model with comprehensive health tracking
 class HealthRecord {
   String? id;
+  String? userId;
   String memberName;
   String
   recordType; // Checkup, Vaccination, Medication, Lab Test, Vitals, Surgery, Allergy, Insurance, Other
@@ -39,6 +40,7 @@ class HealthRecord {
 
   HealthRecord({
     this.id,
+    this.userId,
     required this.memberName,
     required this.recordType,
     required this.date,
@@ -64,51 +66,46 @@ class HealthRecord {
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) '_id': id,
-      'memberName': memberName,
-      'recordType': recordType,
-      'date': date.toIso8601String(),
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      'member_name': memberName,
+      'record_type': recordType,
+      'date': date.toIso8601String().split('T')[0], // Date only for DATE column
       if (description != null) 'description': description,
-      if (doctorName != null) 'doctorName': doctorName,
-      if (hospitalName != null) 'hospitalName': hospitalName,
+      if (doctorName != null) 'doctor_name': doctorName,
+      if (hospitalName != null) 'hospital_name': hospitalName,
       if (medication != null) 'medication': medication,
       if (dosage != null) 'dosage': dosage,
       if (frequency != null) 'frequency': frequency,
-      if (nextVisit != null) 'nextVisit': nextVisit!.toIso8601String(),
+      if (nextVisit != null)
+        'next_visit': nextVisit!.toIso8601String().split('T')[0],
       if (notes != null) 'notes': notes,
-      'isActive': isActive,
-      if (vitals != null) 'vitals': vitals!.toJson(),
-      if (labResults != null) 'labResults': labResults!.toJson(),
-      if (allergy != null) 'allergy': allergy!.toJson(),
-      if (insurance != null) 'insurance': insurance!.toJson(),
-      if (bloodType != null) 'bloodType': bloodType,
-      if (vaccineDose != null) 'vaccineDose': vaccineDose,
-      if (vaccineManufacturer != null)
-        'vaccineManufacturer': vaccineManufacturer,
-      if (batchNumber != null) 'batchNumber': batchNumber,
       if (attachments != null) 'attachments': attachments,
     };
   }
 
   factory HealthRecord.fromJson(Map<String, dynamic> json) {
     return HealthRecord(
-      id: json['_id'] ?? json['id'],
-      memberName: json['memberName'] ?? '',
-      recordType: json['recordType'] ?? 'Checkup',
+      id: json['id'] ?? json['_id'],
+      userId: json['user_id'] ?? json['userId'],
+      memberName: json['member_name'] ?? json['memberName'] ?? '',
+      recordType: json['record_type'] ?? json['recordType'] ?? 'Checkup',
       date: json['date'] != null
           ? DateTime.parse(json['date'])
           : DateTime.now(),
       description: json['description'],
-      doctorName: json['doctorName'],
-      hospitalName: json['hospitalName'],
+      doctorName: json['doctor_name'] ?? json['doctorName'],
+      hospitalName: json['hospital_name'] ?? json['hospitalName'],
       medication: json['medication'],
       dosage: json['dosage'],
       frequency: json['frequency'],
-      nextVisit: json['nextVisit'] != null
-          ? DateTime.parse(json['nextVisit'])
-          : null,
+      nextVisit: json['next_visit'] != null
+          ? DateTime.parse(json['next_visit'])
+          : (json['nextVisit'] != null
+                ? DateTime.parse(json['nextVisit'])
+                : null),
       notes: json['notes'],
-      isActive: json['isActive'] ?? true,
+      isActive: json['is_active'] ?? json['isActive'] ?? true,
       vitals: json['vitals'] != null ? Vitals.fromJson(json['vitals']) : null,
       labResults: json['labResults'] != null
           ? LabResult.fromJson(json['labResults'])
@@ -119,10 +116,11 @@ class HealthRecord {
       insurance: json['insurance'] != null
           ? InsuranceInfo.fromJson(json['insurance'])
           : null,
-      bloodType: json['bloodType'],
-      vaccineDose: json['vaccineDose'],
-      vaccineManufacturer: json['vaccineManufacturer'],
-      batchNumber: json['batchNumber'],
+      bloodType: json['blood_type'] ?? json['bloodType'],
+      vaccineDose: json['vaccine_dose'] ?? json['vaccineDose'],
+      vaccineManufacturer:
+          json['vaccine_manufacturer'] ?? json['vaccineManufacturer'],
+      batchNumber: json['batch_number'] ?? json['batchNumber'],
       attachments: json['attachments'] != null
           ? List<String>.from(json['attachments'])
           : null,
@@ -131,6 +129,7 @@ class HealthRecord {
 
   HealthRecord copyWith({
     String? id,
+    String? userId,
     String? memberName,
     String? recordType,
     DateTime? date,
@@ -155,6 +154,7 @@ class HealthRecord {
   }) {
     return HealthRecord(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       memberName: memberName ?? this.memberName,
       recordType: recordType ?? this.recordType,
       date: date ?? this.date,
@@ -223,14 +223,18 @@ class Vitals {
   }
 
   String getBloodPressureCategory() {
-    if (bloodPressureSystolic == null || bloodPressureDiastolic == null)
+    if (bloodPressureSystolic == null || bloodPressureDiastolic == null) {
       return 'Unknown';
-    if (bloodPressureSystolic! < 120 && bloodPressureDiastolic! < 80)
+    }
+    if (bloodPressureSystolic! < 120 && bloodPressureDiastolic! < 80) {
       return 'Normal';
-    if (bloodPressureSystolic! < 130 && bloodPressureDiastolic! < 80)
+    }
+    if (bloodPressureSystolic! < 130 && bloodPressureDiastolic! < 80) {
       return 'Elevated';
-    if (bloodPressureSystolic! < 140 || bloodPressureDiastolic! < 90)
+    }
+    if (bloodPressureSystolic! < 140 || bloodPressureDiastolic! < 90) {
       return 'High (Stage 1)';
+    }
     return 'High (Stage 2)';
   }
 

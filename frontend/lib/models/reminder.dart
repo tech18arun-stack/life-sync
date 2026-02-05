@@ -1,6 +1,7 @@
 /// Reminder model
 class Reminder {
   String? id;
+  String? userId;
   String title;
   String type; // emi, loan, recharge, bill, custom
   DateTime dueDate;
@@ -13,9 +14,13 @@ class Reminder {
   bool isPaid;
   DateTime? paidDate;
   String? linkedExpenseId;
+  String? contactName;
+  String? phoneNumber;
+  String? notes;
 
   Reminder({
     this.id,
+    this.userId,
     required this.title,
     required this.type,
     required this.dueDate,
@@ -28,6 +33,9 @@ class Reminder {
     this.isPaid = false,
     this.paidDate,
     this.linkedExpenseId,
+    this.contactName,
+    this.phoneNumber,
+    this.notes,
   });
 
   bool get isOverdue => !isPaid && dueDate.isBefore(DateTime.now());
@@ -38,47 +46,53 @@ class Reminder {
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) '_id': id,
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
       'title': title,
       'type': type,
-      'dueDate': dueDate.toIso8601String(),
+      'due_date': dueDate.toIso8601String(),
       if (amount != null) 'amount': amount,
       if (description != null) 'description': description,
-      'isRecurring': isRecurring,
-      if (recurringType != null) 'recurringType': recurringType,
-      'notificationEnabled': notificationEnabled,
-      if (notificationDaysBefore != null)
-        'notificationDaysBefore': notificationDaysBefore,
-      'isPaid': isPaid,
-      if (paidDate != null) 'paidDate': paidDate!.toIso8601String(),
-      if (linkedExpenseId != null) 'linkedExpenseId': linkedExpenseId,
+      if (recurringType != null) 'repeat_interval': recurringType,
+      'is_paid': isPaid,
+      if (notes != null) 'notes': notes,
     };
   }
 
   factory Reminder.fromJson(Map<String, dynamic> json) {
     return Reminder(
-      id: json['_id'] ?? json['id'],
+      id: json['id'] ?? json['_id'],
+      userId: json['user_id'] ?? json['userId'],
       title: json['title'] ?? '',
       type: json['type'] ?? 'custom',
-      dueDate: json['dueDate'] != null
-          ? DateTime.parse(json['dueDate'])
-          : DateTime.now(),
+      dueDate: json['due_date'] != null
+          ? DateTime.parse(json['due_date'])
+          : (json['dueDate'] != null
+                ? DateTime.parse(json['dueDate'])
+                : DateTime.now()),
       amount: json['amount']?.toDouble(),
       description: json['description'],
-      isRecurring: json['isRecurring'] ?? false,
-      recurringType: json['recurringType'],
+      isRecurring:
+          json['repeat_interval'] != null || json['isRecurring'] == true,
+      recurringType: json['repeat_interval'] ?? json['recurringType'],
       notificationEnabled: json['notificationEnabled'] ?? true,
       notificationDaysBefore: json['notificationDaysBefore'] ?? 3,
-      isPaid: json['isPaid'] ?? false,
-      paidDate: json['paidDate'] != null
-          ? DateTime.parse(json['paidDate'])
-          : null,
-      linkedExpenseId: json['linkedExpenseId'],
+      isPaid: json['is_paid'] ?? json['isPaid'] ?? false,
+      paidDate: json['paid_date'] != null
+          ? DateTime.parse(json['paid_date'])
+          : (json['paidDate'] != null
+                ? DateTime.parse(json['paidDate'])
+                : null),
+      linkedExpenseId: json['linked_expense_id'] ?? json['linkedExpenseId'],
+      contactName: json['contact_name'] ?? json['contactName'],
+      phoneNumber: json['phone_number'] ?? json['phoneNumber'],
+      notes: json['notes'],
     );
   }
 
   Reminder copyWith({
     String? id,
+    String? userId,
     String? title,
     String? type,
     DateTime? dueDate,
@@ -91,9 +105,13 @@ class Reminder {
     bool? isPaid,
     DateTime? paidDate,
     String? linkedExpenseId,
+    String? contactName,
+    String? phoneNumber,
+    String? notes,
   }) {
     return Reminder(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       type: type ?? this.type,
       dueDate: dueDate ?? this.dueDate,
@@ -107,6 +125,9 @@ class Reminder {
       isPaid: isPaid ?? this.isPaid,
       paidDate: paidDate ?? this.paidDate,
       linkedExpenseId: linkedExpenseId ?? this.linkedExpenseId,
+      contactName: contactName ?? this.contactName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      notes: notes ?? this.notes,
     );
   }
 }

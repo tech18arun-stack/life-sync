@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/analytics_provider.dart';
 import '../widgets/spending_trends_chart.dart';
 import '../widgets/category_breakdown_widget.dart';
@@ -8,6 +10,7 @@ import '../widgets/expense_prediction_card.dart';
 import '../services/gemini_service.dart';
 import '../providers/financial_data_manager.dart';
 import '../widgets/ai_tips_card.dart';
+import '../utils/app_theme.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -17,7 +20,7 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  final _geminiService = GeminiService();
+  // final _geminiService = GeminiService(); // Removed
   bool _aiEnabled = false;
   String? _aiAnalysis;
   bool _isLoadingAI = false;
@@ -29,11 +32,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _initializeAI() async {
-    await _geminiService.initialize();
-    final enabled = await _geminiService.isAIEnabled();
-    setState(() {
-      _aiEnabled = enabled;
-    });
+    final geminiService = Provider.of<GeminiService>(context, listen: false);
+    // Initialize is handled in main, but checking here doesn't hurt
+    if (!geminiService.isInitialized) {
+      await geminiService.initialize();
+    }
+    final enabled = await geminiService.isAIEnabled();
+    if (mounted) {
+      setState(() {
+        _aiEnabled = enabled;
+      });
+    }
     if (enabled) {
       _loadAIAnalysis();
     }
@@ -46,16 +55,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         context,
         listen: false,
       );
-      final expenses = financialManager.getRecentExpenses(
-        limit: 60,
-      ); // Get last 60 days
+      final expenses = financialManager.getRecentExpenses(limit: 60);
 
       if (expenses.isEmpty) {
         setState(() => _isLoadingAI = false);
         return;
       }
 
-      final analysis = await _geminiService.analyzeTrends(
+      final geminiService = Provider.of<GeminiService>(context, listen: false);
+      final analysis = await geminiService.analyzeTrends(
         expenses: expenses,
         days: 30,
       );
@@ -72,22 +80,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Analytics Dashboard'),
-        actions: [
-          if (_aiEnabled)
-            IconButton(
-              icon: _isLoadingAI
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-              onPressed: _loadAIAnalysis,
-            ),
-        ],
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Consumer<AnalyticsProvider>(
         builder: (context, analytics, child) {
           final trends = analytics.getTrendData(days: 30);
@@ -95,227 +88,333 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final comparison = analytics.compareMonthToPrevious();
           final predictions = analytics.predictions;
 
-          if (trends.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.analytics_outlined,
-                    size: 64,
-                    color: Theme.of(context).disabledColor,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No data available yet',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).disabledColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add some expenses to see insights',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).disabledColor,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+          return CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(context),
+              if (trends.isEmpty)
+                SliverFillRemaining(child: _buildEmptyState())
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildFinancialSummaryCard(context),
+                      const SizedBox(height: 24),
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Income Availability Overview
-                Consumer<FinancialDataManager>(
-                  builder: (context, financial, _) {
-                    final availableBalance = financial.getAvailableBalance();
-                    final monthlyAvailable = financial
-                        .getMonthlyAvailableBalance();
-                    final totalIncome = financial.getTotalIncome();
-                    final totalExpenses = financial.getTotalExpenses();
-
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context).primaryColor,
-                            Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.7),
-                          ],
+                      // AI Analysis
+                      if (_aiEnabled && (_aiAnalysis != null || _isLoadingAI))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: AITipsCard(
+                            tip: _aiAnalysis,
+                            isLoading: _isLoadingAI,
+                            onRefresh: _loadAIAnalysis,
+                            title: '🤖 AI Trend Analysis',
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Financial Summary',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildSummaryItem(
-                                'Total Income',
-                                totalIncome,
-                                Icons.trending_up,
-                              ),
-                              _buildSummaryItem(
-                                'Total Expenses',
-                                totalExpenses,
-                                Icons.trending_down,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Divider(color: Colors.white.withValues(alpha: 0.3)),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Available Balance',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '₹${availableBalance.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'Overall',
-                                    style: TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text(
-                                    'This Month',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '₹${monthlyAvailable.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'Available',
-                                    style: TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
 
-                // AI Analysis
-                if (_aiEnabled && (_aiAnalysis != null || _isLoadingAI))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: AITipsCard(
-                      tip: _aiAnalysis,
-                      isLoading: _isLoadingAI,
-                      onRefresh: _loadAIAnalysis,
-                      title: '🤖 AI Trend Analysis',
-                    ),
+                      // Prediction Card
+                      ExpensePredictionCard(predictionData: predictions),
+                      const SizedBox(height: 24),
+
+                      // Spending Trends
+                      SpendingTrendsChart(dailySpending: trends),
+                      const SizedBox(height: 24),
+
+                      // Monthly Comparison
+                      MonthlyComparisonWidget(comparisonData: comparison),
+                      const SizedBox(height: 24),
+
+                      // Category Breakdown
+                      CategoryBreakdownWidget(categoryTotals: categories),
+                      const SizedBox(height: 80),
+                    ]),
                   ),
-
-                // Prediction Card
-                ExpensePredictionCard(predictionData: predictions),
-                const SizedBox(height: 24),
-
-                // Spending Trends
-                SpendingTrendsChart(dailySpending: trends),
-                const SizedBox(height: 24),
-
-                // Monthly Comparison
-                MonthlyComparisonWidget(comparisonData: comparison),
-                const SizedBox(height: 24),
-
-                // Category Breakdown
-                CategoryBreakdownWidget(categoryTotals: categories),
-                const SizedBox(height: 100),
-              ],
-            ),
+                ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildSummaryItem(String label, double amount, IconData icon) {
+  Widget _buildSliverAppBar(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: 120.0,
+      floating: true,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back_ios_new, size: 16),
+        ),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      actions: [
+        if (_aiEnabled)
+          IconButton(
+            icon: _isLoadingAI
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const FaIcon(
+                      FontAwesomeIcons.arrowsRotate,
+                      size: 16,
+                    ),
+                  ),
+            onPressed: _loadAIAnalysis,
+          ),
+        const SizedBox(width: 16),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+        title: Text(
+          'Analytics',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+            fontSize: 20,
+          ),
+        ),
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppTheme.primaryColor.withValues(alpha: 0.05),
+                Theme.of(context).scaffoldBackgroundColor,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialSummaryCard(BuildContext context) {
+    return Consumer<FinancialDataManager>(
+      builder: (context, financial, _) {
+        final availableBalance = financial.getAvailableBalance();
+        final monthlyAvailable = financial.getMonthlyAvailableBalance();
+        final totalIncome = financial.getTotalIncome();
+        final totalExpenses = financial.getTotalExpenses();
+
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primaryColor, const Color(0xFF6C63FF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Financial Overview',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryColumn(
+                      'Income',
+                      totalIncome,
+                      Icons.arrow_upward,
+                      const Color(0xFF4ADE80), // Light green
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 20),
+                      child: _buildSummaryColumn(
+                        'Expenses',
+                        totalExpenses,
+                        Icons.arrow_downward,
+                        const Color(0xFFF87171), // Light red
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Available Balance',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${availableBalance.toStringAsFixed(0)}',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'This Month',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${monthlyAvailable.toStringAsFixed(0)}',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryColumn(
+    String label,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 16),
-            const SizedBox(width: 8),
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           '₹${amount.toStringAsFixed(0)}',
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              shape: BoxShape.circle,
+            ),
+            child: FaIcon(
+              FontAwesomeIcons.chartPie,
+              size: 50,
+              color: Theme.of(context).disabledColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No data available',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).disabledColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Track expenses to see analytics',
+            style: GoogleFonts.inter(color: Theme.of(context).disabledColor),
+          ),
+        ],
+      ),
     );
   }
 }

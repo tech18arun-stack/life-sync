@@ -1,6 +1,7 @@
-/// FamilyNumber model for MongoDB - dedicated for phone contacts
+/// FamilyNumber model for Supabase - dedicated for phone contacts
 class FamilyNumber {
   String? id;
+  String? userId;
   String name;
   String phone;
   String? relation;
@@ -14,6 +15,7 @@ class FamilyNumber {
 
   FamilyNumber({
     this.id,
+    this.userId,
     required this.name,
     required this.phone,
     this.relation,
@@ -29,6 +31,7 @@ class FamilyNumber {
   factory FamilyNumber.fromJson(Map<String, dynamic> json) {
     return FamilyNumber(
       id: json['_id'] ?? json['id'],
+      userId: json['user_id'] ?? json['userId'],
       name: json['name'] ?? '',
       phone: json['phone'] ?? '',
       relation: json['relation'],
@@ -49,6 +52,7 @@ class FamilyNumber {
   Map<String, dynamic> toJson() {
     return {
       if (id != null) '_id': id,
+      if (userId != null) 'user_id': userId,
       'name': name,
       'phone': phone,
       if (relation != null) 'relation': relation,
@@ -62,6 +66,7 @@ class FamilyNumber {
 
   FamilyNumber copyWith({
     String? id,
+    String? userId,
     String? name,
     String? phone,
     String? relation,
@@ -73,6 +78,7 @@ class FamilyNumber {
   }) {
     return FamilyNumber(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       phone: phone ?? this.phone,
       relation: relation ?? this.relation,

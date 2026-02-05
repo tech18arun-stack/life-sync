@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_theme.dart';
 
 class MonthlyComparisonWidget extends StatelessWidget {
@@ -19,11 +20,17 @@ class MonthlyComparisonWidget extends StatelessWidget {
     final isGood = !isIncrease; // For expenses, decrease is good
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -32,7 +39,11 @@ class MonthlyComparisonWidget extends StatelessWidget {
             children: [
               Text(
                 'Monthly Comparison',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -41,7 +52,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (isGood ? AppTheme.successColor : AppTheme.errorColor)
-                      .withOpacity(0.1),
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -56,7 +67,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${percent.abs().toStringAsFixed(1)}%',
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         color: isGood
                             ? AppTheme.successColor
                             : AppTheme.errorColor,
@@ -69,7 +80,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           Row(
             children: [
               Expanded(
@@ -77,10 +88,14 @@ class MonthlyComparisonWidget extends StatelessWidget {
                   context,
                   'Last Month',
                   previous,
-                  AppTheme.textSecondary,
+                  Colors.grey,
                 ),
               ),
-              Container(width: 1, height: 40, color: AppTheme.borderColor),
+              Container(
+                width: 1,
+                height: 50,
+                color: Theme.of(context).dividerColor,
+              ),
               Expanded(
                 child: _buildMonthColumn(
                   context,
@@ -91,12 +106,14 @@ class MonthlyComparisonWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: previous > 0 ? (current / (current + previous)) : 0.5,
-              backgroundColor: AppTheme.textSecondary.withOpacity(0.2),
+              backgroundColor: Theme.of(
+                context,
+              ).dividerColor.withValues(alpha: 0.3),
               color: AppTheme.primaryColor,
               minHeight: 8,
             ),
@@ -114,13 +131,19 @@ class MonthlyComparisonWidget extends StatelessWidget {
   ) {
     return Column(
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Theme.of(context).textTheme.bodySmall?.color,
+            fontSize: 12,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           '₹${amount.toStringAsFixed(0)}',
-          style: TextStyle(
+          style: GoogleFonts.inter(
             color: color,
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),

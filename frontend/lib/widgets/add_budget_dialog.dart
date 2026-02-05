@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models/budget.dart';
 import '../providers/financial_data_manager.dart';
+import '../utils/app_theme.dart';
 
 class AddBudgetDialog extends StatefulWidget {
   final Budget? budget;
@@ -25,22 +29,57 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
 
   final List<String> _periods = ['Weekly', 'Monthly', 'Yearly'];
   final List<String> _categories = [
-    'Housing',
-    'Transportation',
     'Food & Dining',
+    'Groceries',
+    'Vegetables',
+    'Fruits',
+    'Meat',
+    'Dairy',
+    'Transportation',
     'Utilities',
+    'Bills',
+    'Mobile Recharge',
+    'DTH',
+    'Internet Bill',
     'Health & Fitness',
     'Education',
+    'School Fees',
+    'Tuition',
+    'Education Fee',
     'Entertainment',
+    'Subscription',
     'Shopping',
+    'Gadgets',
     'Personal Care',
     'Gifts & Donations',
+    'Charity',
+    'Wedding',
     'Investments',
+    'Retirement',
+    'Business',
     'Debt Payments',
+    'Loan',
+    'EMI',
+    'Credit Card',
     'Travel',
+    'Vacation',
     'Kids',
+    'Childcare',
     'Pets',
+    'Pet Care',
+    'Housing',
+    'Rent',
+    'Home',
+    'Household',
+    'Home Maintenance',
+    'Cleaning Supplies',
+    'Furniture',
+    'Family',
+    'Family Outing',
+    'Family Dinner',
+    'Car',
     'Insurance',
+    'Emergency Fund',
     'Others',
   ];
 
@@ -49,7 +88,7 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
     super.initState();
     _categoryController = TextEditingController(text: widget.budget?.category);
     _amountController = TextEditingController(
-      text: widget.budget?.allocatedAmount.toString() ?? '',
+      text: widget.budget?.allocatedAmount.toString(),
     );
     _startDate = widget.budget?.startDate ?? DateTime.now();
     _endDate =
@@ -68,67 +107,103 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final inputFillColor = isDark
+        ? Colors.grey.withValues(alpha: 0.1)
+        : Colors.grey.withValues(alpha: 0.05);
+
     return Dialog(
-      backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      elevation: 10,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                widget.budget == null ? 'Add Budget' : 'Edit Budget',
-                style: Theme.of(context).textTheme.headlineMedium,
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.budget == null ? 'Set Budget' : 'Edit Budget',
+                    style: GoogleFonts.inter(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: textSecondary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: inputFillColor,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Category Dropdown
+              // Category
+              _buildLabel('Category'),
               DropdownButtonFormField<String>(
-                initialValue:
-                    _categoryController.text.isNotEmpty &&
-                        _categories.contains(_categoryController.text)
+                value:
+                    (_categoryController.text.isNotEmpty &&
+                        _categories.contains(_categoryController.text))
                     ? _categoryController.text
                     : null,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category),
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  'Select category',
+                  Icons.category,
+                  inputFillColor,
+                  textSecondary,
                 ),
-                items: _categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _categoryController.text = value;
-                    });
+                items: _categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _categoryController.text = val);
                   }
                 },
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please select a category'
-                    : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Select a category' : null,
               ),
               const SizedBox(height: 16),
 
               // Amount
+              _buildLabel('Limit Amount'),
               TextFormField(
                 controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  prefixIcon: Icon(Icons.attach_money),
+                style: GoogleFonts.inter(
+                  color: textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an amount';
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration(
+                  '0.00',
+                  FontAwesomeIcons.indianRupeeSign,
+                  inputFillColor,
+                  textSecondary,
+                ),
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Enter amount';
                   }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
+                  if (double.tryParse(val) == null) {
+                    return 'Invalid number';
                   }
                   return null;
                 },
@@ -136,20 +211,25 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
               const SizedBox(height: 16),
 
               // Period
+              _buildLabel('Period'),
               DropdownButtonFormField<String>(
-                initialValue: _period,
-                decoration: const InputDecoration(
-                  labelText: 'Period',
-                  prefixIcon: Icon(Icons.calendar_today),
+                value: _period,
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  '',
+                  Icons.refresh,
+                  inputFillColor,
+                  textSecondary,
                 ),
-                items: _periods.map((period) {
-                  return DropdownMenuItem(value: period, child: Text(period));
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
+                items: _periods
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
                     setState(() {
-                      _period = value;
-                      // Auto-adjust end date based on period
+                      _period = val;
+                      // Auto adjust end date
                       if (_period == 'Weekly') {
                         _endDate = _startDate.add(const Duration(days: 7));
                       } else if (_period == 'Monthly') {
@@ -171,7 +251,8 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Date Range
+              // Dates
+              _buildLabel('Duration'),
               Row(
                 children: [
                   Expanded(
@@ -186,7 +267,6 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
                         if (picked != null) {
                           setState(() {
                             _startDate = picked;
-                            // Adjust end date to be at least start date
                             if (_endDate.isBefore(_startDate)) {
                               _endDate = _startDate.add(
                                 const Duration(days: 1),
@@ -195,17 +275,39 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
                           });
                         }
                       },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Start Date',
-                          prefixIcon: Icon(Icons.date_range),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Text(
-                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Starts',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('MMM d, y').format(_startDate),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
                   const SizedBox(width: 12),
                   Expanded(
                     child: InkWell(
@@ -220,13 +322,33 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
                           setState(() => _endDate = picked);
                         }
                       },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'End Date',
-                          prefixIcon: Icon(Icons.event),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Text(
-                          '${_endDate.day}/${_endDate.month}/${_endDate.year}',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ends',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat('MMM d, y').format(_endDate),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -236,45 +358,108 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
               const SizedBox(height: 20),
 
               // Alert Settings
-              SwitchListTile(
-                title: const Text('Enable Alerts'),
-                subtitle: const Text('Notify when budget is exceeded'),
-                value: _alertEnabled,
-                onChanged: (value) => setState(() => _alertEnabled = value),
-                contentPadding: EdgeInsets.zero,
+              Container(
+                decoration: BoxDecoration(
+                  color: inputFillColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        'Alert me',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'When spending exceeds limit',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: textSecondary,
+                        ),
+                      ),
+                      value: _alertEnabled,
+                      activeColor: AppTheme.primaryColor,
+                      onChanged: (val) => setState(() => _alertEnabled = val),
+                    ),
+                    if (_alertEnabled) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Threshold:',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  activeTrackColor: AppTheme.primaryColor,
+                                  thumbColor: AppTheme.primaryColor,
+                                  inactiveTrackColor: Colors.grey.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                                child: Slider(
+                                  value: _alertThreshold,
+                                  min: 50,
+                                  max: 100,
+                                  divisions: 10,
+                                  label: '${_alertThreshold.round()}%',
+                                  onChanged: (val) =>
+                                      setState(() => _alertThreshold = val),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${_alertThreshold.round()}%',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 32),
 
-              if (_alertEnabled) ...[
-                Text(
-                  'Alert Threshold: ${_alertThreshold.round()}%',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                Slider(
-                  value: _alertThreshold,
-                  min: 50,
-                  max: 100,
-                  divisions: 10,
-                  label: '${_alertThreshold.round()}%',
-                  onChanged: (value) => setState(() => _alertThreshold = value),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _saveBudget,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: AppTheme.primaryColor.withValues(alpha: 0.4),
                   ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: _saveBudget,
-                    child: const Text('Save Budget'),
+                  child: Text(
+                    widget.budget == null ? 'Create Budget' : 'Update Budget',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -283,12 +468,51 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
     );
   }
 
-  void _saveBudget() {
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String hint,
+    IconData icon,
+    Color fillColor,
+    Color iconColor,
+  ) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: iconColor, size: 20),
+      filled: true,
+      fillColor: fillColor,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+  }
+
+  Future<void> _saveBudget() async {
     if (_formKey.currentState!.validate()) {
       final budget = Budget(
-        id: widget
-            .budget
-            ?.id, // Don't generate UUID - let MongoDB create the _id
+        id: widget.budget?.id,
         category: _categoryController.text,
         allocatedAmount: double.parse(_amountController.text),
         spentAmount: widget.budget?.spentAmount ?? 0,
@@ -298,13 +522,23 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
       );
 
       final manager = Provider.of<FinancialDataManager>(context, listen: false);
-      if (widget.budget == null) {
-        manager.addBudget(budget);
-      } else {
-        manager.updateBudget(budget);
-      }
 
-      Navigator.pop(context);
+      try {
+        if (widget.budget == null) {
+          await manager.addBudget(budget);
+        } else {
+          await manager.updateBudget(budget);
+        }
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
     }
   }
 }

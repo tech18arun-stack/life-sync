@@ -9,9 +9,11 @@ class User {
   DateTime? lastLogin;
   DateTime? createdAt;
   DateTime? updatedAt;
+  // User type: 'admin' (registered via Register Screen) or 'client' (created by admin)
+  String userType;
   // Family hierarchy fields
-  String role; // 'owner' or 'member'
-  String? parentUserId;
+  String role; // 'owner' or 'member' within family
+  String? parentUserId; // The admin who created this client user
   String? familyId;
   String? relation;
 
@@ -25,6 +27,7 @@ class User {
     this.lastLogin,
     this.createdAt,
     this.updatedAt,
+    this.userType = 'admin', // Default to admin for register screen
     this.role = 'owner',
     this.parentUserId,
     this.familyId,
@@ -33,39 +36,47 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['_id'] ?? json['id'],
+      id: json['id'] ?? json['_id'],
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'],
       avatar: json['avatar'],
-      isActive: json['isActive'] ?? true,
-      lastLogin: json['lastLogin'] != null
-          ? DateTime.parse(json['lastLogin'])
-          : null,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : null,
+      isActive: json['is_active'] ?? json['isActive'] ?? true,
+      lastLogin: json['last_login'] != null
+          ? DateTime.parse(json['last_login'])
+          : (json['lastLogin'] != null
+                ? DateTime.parse(json['lastLogin'])
+                : null),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : (json['createdAt'] != null
+                ? DateTime.parse(json['createdAt'])
+                : null),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : (json['updatedAt'] != null
+                ? DateTime.parse(json['updatedAt'])
+                : null),
+      userType: json['user_type'] ?? json['userType'] ?? 'admin',
       role: json['role'] ?? 'owner',
-      parentUserId: json['parentUserId'],
-      familyId: json['familyId'],
+      parentUserId: json['parent_user_id'] ?? json['parentUserId'],
+      familyId: json['family_id'] ?? json['familyId'],
       relation: json['relation'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) '_id': id,
+      if (id != null) 'id': id,
       'name': name,
       'email': email,
       if (phone != null) 'phone': phone,
       if (avatar != null) 'avatar': avatar,
-      'isActive': isActive,
+      'is_active': isActive,
+      'user_type': userType,
       'role': role,
-      if (parentUserId != null) 'parentUserId': parentUserId,
-      if (familyId != null) 'familyId': familyId,
+      if (parentUserId != null) 'parent_user_id': parentUserId,
+      if (familyId != null) 'family_id': familyId,
       if (relation != null) 'relation': relation,
     };
   }
@@ -77,6 +88,7 @@ class User {
     String? phone,
     String? avatar,
     bool? isActive,
+    String? userType,
     String? role,
     String? parentUserId,
     String? familyId,
@@ -92,6 +104,7 @@ class User {
       lastLogin: lastLogin,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      userType: userType ?? this.userType,
       role: role ?? this.role,
       parentUserId: parentUserId ?? this.parentUserId,
       familyId: familyId ?? this.familyId,
@@ -99,6 +112,11 @@ class User {
     );
   }
 
+  // User type checks
+  bool get isAdmin => userType == 'admin';
+  bool get isClient => userType == 'client';
+
+  // Role checks (within family)
   bool get isOwner => role == 'owner';
   bool get isMember => role == 'member';
 }

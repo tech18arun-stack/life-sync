@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import '../models/expense.dart';
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
@@ -26,34 +28,73 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
   late DateTime _selectedDate;
 
   final List<String> _categories = [
-    'Housing',
-    'Transportation',
     'Food & Dining',
+    'Groceries',
+    'Vegetables',
+    'Fruits',
+    'Meat',
+    'Dairy',
+    'Transportation',
     'Utilities',
+    'Bills',
+    'Mobile Recharge',
+    'DTH',
+    'Internet Bill',
     'Health & Fitness',
     'Education',
+    'School Fees',
+    'Tuition',
+    'Education Fee',
     'Entertainment',
+    'Subscription',
     'Shopping',
+    'Gadgets',
     'Personal Care',
     'Gifts & Donations',
+    'Charity',
+    'Wedding',
     'Investments',
+    'Retirement',
+    'Business',
     'Debt Payments',
+    'Loan',
+    'EMI',
+    'Credit Card',
     'Travel',
+    'Vacation',
     'Kids',
+    'Childcare',
     'Pets',
+    'Pet Care',
+    'Housing',
+    'Rent',
+    'Home',
+    'Household',
+    'Home Maintenance',
+    'Cleaning Supplies',
+    'Furniture',
+    'Family',
+    'Family Outing',
+    'Family Dinner',
+    'Car',
     'Insurance',
+    'Emergency Fund',
     'Others',
   ];
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.expense?.title);
+    _titleController = TextEditingController(text: widget.expense?.description);
     _amountController = TextEditingController(
-      text: widget.expense?.amount.toString(),
+      text: widget.expense != null ? widget.expense!.amount.toString() : '',
     );
     _descriptionController = TextEditingController(text: widget.expense?.notes);
-    _selectedCategory = widget.expense?.category ?? 'Food & Dining';
+    _selectedCategory = widget.expense?.category ?? _categories.first;
+    // Validate category exists
+    if (!_categories.contains(_selectedCategory)) {
+      _selectedCategory = _categories.first;
+    }
     _selectedPaymentMethod = widget.expense?.paymentMethod ?? 'Cash';
     _selectedDate = widget.expense?.date ?? DateTime.now();
   }
@@ -68,75 +109,111 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final inputFillColor = isDark
+        ? Colors.grey.withValues(alpha: 0.1)
+        : Colors.grey.withValues(alpha: 0.05);
+
     return Dialog(
-      backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      elevation: 10,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.expense == null ? 'Add Expense' : 'Edit Expense',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    widget.expense == null ? 'New Expense' : 'Edit Expense',
+                    style: GoogleFonts.inter(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: textSecondary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: inputFillColor,
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
+              // Title Input
+              _buildLabel('Title'),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'e.g., Grocery Shopping',
-                  prefixIcon: Icon(Icons.title),
+                style: GoogleFonts.inter(
+                  color: textPrimary,
+                  fontWeight: FontWeight.w500,
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+                decoration: _inputDecoration(
+                  'e.g., Grocery Shopping',
+                  Icons.edit,
+                  inputFillColor,
+                  textSecondary,
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter a title'
+                    : null,
               ),
               const SizedBox(height: 16),
 
+              // Amount Input
+              _buildLabel('Amount'),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  hintText: '0.00',
-                  prefixIcon: Icon(Icons.currency_rupee),
+                style: GoogleFonts.inter(
+                  color: textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: _inputDecoration(
+                  '0.00',
+                  FontAwesomeIcons.indianRupeeSign,
+                  inputFillColor,
+                  textSecondary,
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter an amount';
                   }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
+                  if (double.tryParse(value) == null) return 'Invalid number';
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
+              // Category Dropdown
+              _buildLabel('Category'),
               DropdownButtonFormField<String>(
                 initialValue: _categories.contains(_selectedCategory)
                     ? _selectedCategory
                     : _categories.first,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category),
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  '',
+                  Icons.category,
+                  inputFillColor,
+                  textSecondary,
                 ),
                 items: _categories.map((category) {
                   return DropdownMenuItem(
@@ -157,46 +234,32 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                     ),
                   );
                 }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategory = value!;
-                  });
-                },
-                dropdownColor: Theme.of(context).cardColor,
+                onChanged: (val) => setState(() => _selectedCategory = val!),
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'Add notes',
-                  prefixIcon: Icon(Icons.notes),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
+              // Payment Method
+              _buildLabel('Payment Method'),
               DropdownButtonFormField<String>(
                 initialValue: _selectedPaymentMethod,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Method',
-                  prefixIcon: Icon(Icons.payment),
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  '',
+                  Icons.payment,
+                  inputFillColor,
+                  textSecondary,
                 ),
-                items: ['Cash', 'UPI', 'Card', 'Net Banking', 'Other'].map((
-                  method,
-                ) {
-                  return DropdownMenuItem(value: method, child: Text(method));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPaymentMethod = value!;
-                  });
-                },
-                dropdownColor: Theme.of(context).cardColor,
+                items: ['Cash', 'UPI', 'Card', 'Net Banking', 'Other']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (val) =>
+                    setState(() => _selectedPaymentMethod = val!),
               ),
               const SizedBox(height: 16),
 
+              // Date & Time Picker
+              _buildLabel('Date & Time'),
               Row(
                 children: [
                   Expanded(
@@ -209,34 +272,37 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                           lastDate: DateTime.now(),
                         );
                         if (date != null) {
-                          setState(() {
-                            _selectedDate = DateTime(
+                          setState(
+                            () => _selectedDate = DateTime(
                               date.year,
                               date.month,
                               date.day,
                               _selectedDate.hour,
                               _selectedDate.minute,
-                            );
-                          });
+                            ),
+                          );
                         }
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            bottomLeft: Radius.circular(12),
-                          ),
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.transparent),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today),
-                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 18,
+                              color: textSecondary,
+                            ),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                DateFormat('MMM d, yyyy').format(_selectedDate),
-                                style: Theme.of(context).textTheme.bodyLarge,
+                                DateFormat('MMM d, y').format(_selectedDate),
+                                style: GoogleFonts.inter(color: textPrimary),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -244,7 +310,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 1),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: InkWell(
                       onTap: () async {
@@ -253,34 +319,36 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                           initialTime: TimeOfDay.fromDateTime(_selectedDate),
                         );
                         if (time != null) {
-                          setState(() {
-                            _selectedDate = DateTime(
+                          setState(
+                            () => _selectedDate = DateTime(
                               _selectedDate.year,
                               _selectedDate.month,
                               _selectedDate.day,
                               time.hour,
                               time.minute,
-                            );
-                          });
+                            ),
+                          );
                         }
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          ),
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.access_time),
-                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.access_time,
+                              size: 18,
+                              color: textSecondary,
+                            ),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 DateFormat('h:mm a').format(_selectedDate),
-                                style: Theme.of(context).textTheme.bodyLarge,
+                                style: GoogleFonts.inter(color: textPrimary),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -290,14 +358,44 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
+              // Description
+              _buildLabel('Notes (Optional)'),
+              TextFormField(
+                controller: _descriptionController,
+                style: GoogleFonts.inter(color: textPrimary),
+                maxLines: 2,
+                decoration: _inputDecoration(
+                  'Add any extra details...',
+                  Icons.notes,
+                  inputFillColor,
+                  textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Action Button
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: _saveExpense,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.errorColor, // Red for expense
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: AppTheme.errorColor.withValues(alpha: 0.4),
+                  ),
                   child: Text(
                     widget.expense == null ? 'Add Expense' : 'Update Expense',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -308,12 +406,51 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     );
   }
 
-  void _saveExpense() {
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String hint,
+    IconData icon,
+    Color fillColor,
+    Color iconColor,
+  ) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: iconColor, size: 20),
+      filled: true,
+      fillColor: fillColor,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+  }
+
+  Future<void> _saveExpense() async {
     if (_formKey.currentState!.validate()) {
       final expense = Expense(
-        id: widget
-            .expense
-            ?.id, // Don't generate UUID - let MongoDB create the _id
+        id: widget.expense?.id,
         description: _titleController.text,
         amount: double.parse(_amountController.text),
         category: _selectedCategory,
@@ -329,24 +466,39 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
         listen: false,
       );
 
-      if (widget.expense == null) {
-        provider.addExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense added successfully!'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
-      } else {
-        provider.updateExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense updated successfully!'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
+      try {
+        if (widget.expense == null) {
+          await provider.addExpense(expense);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Expense added!'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          }
+        } else {
+          await provider.updateExpense(expense);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Expense updated!'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          }
+        }
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
       }
-      Navigator.pop(context);
     }
   }
 }

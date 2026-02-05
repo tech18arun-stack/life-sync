@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import '../providers/task_provider.dart';
 import '../models/task.dart';
 import '../utils/app_theme.dart';
 import '../widgets/task_item.dart';
 import '../widgets/add_task_dialog.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -38,16 +40,24 @@ class _TasksScreenState extends State<TasksScreen>
     final taskProvider = Provider.of<TaskProvider>(context);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Tasks & To-Do'),
+        title: Text(
+          'Tasks & To-Do',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
         actions: [
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.chartLine),
+            icon: const FaIcon(FontAwesomeIcons.chartLine, size: 20),
             tooltip: 'Statistics',
             onPressed: () => _showStatistics(context, taskProvider),
           ),
           PopupMenuButton<String>(
-            icon: const FaIcon(FontAwesomeIcons.ellipsisVertical),
+            icon: const FaIcon(FontAwesomeIcons.ellipsisVertical, size: 20),
             onSelected: (value) {
               if (value == 'clearCompleted') {
                 _clearCompletedTasks(taskProvider);
@@ -55,24 +65,25 @@ class _TasksScreenState extends State<TasksScreen>
                 _showSortOptions();
               }
             },
+            color: Theme.of(context).cardColor,
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'sortBy',
                 child: Row(
                   children: [
-                    FaIcon(FontAwesomeIcons.arrowDownWideShort, size: 16),
-                    SizedBox(width: 12),
-                    Text('Sort By'),
+                    const FaIcon(FontAwesomeIcons.arrowDownWideShort, size: 16),
+                    const SizedBox(width: 12),
+                    Text('Sort By', style: GoogleFonts.inter()),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'clearCompleted',
                 child: Row(
                   children: [
-                    FaIcon(FontAwesomeIcons.trash, size: 16),
-                    SizedBox(width: 12),
-                    Text('Clear Completed'),
+                    const FaIcon(FontAwesomeIcons.trash, size: 16),
+                    const SizedBox(width: 12),
+                    Text('Clear Completed', style: GoogleFonts.inter()),
                   ],
                 ),
               ),
@@ -82,23 +93,17 @@ class _TasksScreenState extends State<TasksScreen>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          unselectedLabelStyle: GoogleFonts.inter(),
+          indicatorColor: AppTheme.primaryColor,
+          indicatorWeight: 3,
+          labelColor: AppTheme.primaryColor,
+          unselectedLabelColor: Colors.grey,
           tabs: [
-            Tab(
-              icon: const FaIcon(FontAwesomeIcons.listCheck, size: 18),
-              text: 'All (${taskProvider.tasks.length})',
-            ),
-            Tab(
-              icon: const FaIcon(FontAwesomeIcons.clock, size: 18),
-              text: 'Pending (${taskProvider.pendingTasks.length})',
-            ),
-            Tab(
-              icon: const FaIcon(FontAwesomeIcons.circleCheck, size: 18),
-              text: 'Done (${taskProvider.completedTasks.length})',
-            ),
-            Tab(
-              icon: const FaIcon(FontAwesomeIcons.calendarDay, size: 18),
-              text: 'Today',
-            ),
+            Tab(text: 'All (${taskProvider.tasks.length})'),
+            Tab(text: 'Pending (${taskProvider.pendingTasks.length})'),
+            Tab(text: 'Done (${taskProvider.completedTasks.length})'),
+            const Tab(text: 'Today'),
           ],
         ),
       ),
@@ -107,25 +112,27 @@ class _TasksScreenState extends State<TasksScreen>
           // Search and Filter Bar
           Container(
             padding: const EdgeInsets.all(16),
-            color: Theme.of(context).cardColor,
             child: Column(
               children: [
                 TextField(
                   onChanged: (value) => setState(() => _searchQuery = value),
+                  style: GoogleFonts.inter(),
                   decoration: InputDecoration(
                     hintText: 'Search tasks...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: GoogleFonts.inter(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
+                            icon: const Icon(Icons.clear, color: Colors.grey),
                             onPressed: () => setState(() => _searchQuery = ''),
                           )
                         : null,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Theme.of(context).scaffoldBackgroundColor,
+                    fillColor: Theme.of(context).cardColor,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -159,8 +166,19 @@ class _TasksScreenState extends State<TasksScreen>
             builder: (context) => const AddTaskDialog(),
           );
         },
-        icon: const FaIcon(FontAwesomeIcons.plus),
-        label: const Text('Add Task'),
+        backgroundColor: AppTheme.primaryColor,
+        icon: const FaIcon(
+          FontAwesomeIcons.plus,
+          color: Colors.white,
+          size: 18,
+        ),
+        label: Text(
+          'Add Task',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }
@@ -172,14 +190,31 @@ class _TasksScreenState extends State<TasksScreen>
         return Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: FilterChip(
-              label: Text(priority),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() => _selectedPriority = priority);
-              },
-              selectedColor: AppTheme.primaryColor.withOpacity(0.2),
-              checkmarkColor: AppTheme.primaryColor,
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedPriority = priority),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: isSelected
+                      ? null
+                      : Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  priority,
+                  style: GoogleFonts.inter(
+                    color: isSelected
+                        ? Colors.white
+                        : Theme.of(context).textTheme.bodyMedium?.color,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -193,34 +228,40 @@ class _TasksScreenState extends State<TasksScreen>
     final progress = total > 0 ? completed / total : 0.0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [AppTheme.cardShadow],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Progress', style: Theme.of(context).textTheme.titleSmall),
               Text(
-                '$completed / $total completed',
-                style: Theme.of(context).textTheme.bodySmall,
+                'Overall Progress',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '$completed / $total',
+                style: GoogleFonts.inter(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-            valueColor: const AlwaysStoppedAnimation(AppTheme.successColor),
+          const SizedBox(height: 10),
+          ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            minHeight: 8,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${(progress * 100).toStringAsFixed(0)}% Complete',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.successColor,
-              fontWeight: FontWeight.bold,
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              valueColor: const AlwaysStoppedAnimation(AppTheme.successColor),
+              minHeight: 8,
             ),
           ),
         ],
@@ -229,7 +270,7 @@ class _TasksScreenState extends State<TasksScreen>
   }
 
   Widget _buildTaskList(List<Task> tasks, TaskProvider provider) {
-    // Filter by search and priority
+    // Filter
     final filteredTasks = tasks.where((task) {
       final matchesSearch =
           _searchQuery.isEmpty ||
@@ -244,37 +285,34 @@ class _TasksScreenState extends State<TasksScreen>
       return matchesSearch && matchesPriority;
     }).toList();
 
-    // Sort tasks
+    // Sort
     _sortTasks(filteredTasks);
 
-    if (filteredTasks.isEmpty) {
-      return _buildEmptyState();
-    }
+    if (filteredTasks.isEmpty) return _buildEmptyState();
 
-    // Group tasks by category
     final groupedTasks = <String, List<Task>>{};
     for (final task in filteredTasks) {
       groupedTasks.putIfAbsent(task.category, () => []).add(task);
     }
 
-    return SingleChildScrollView(
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...groupedTasks.entries.map((entry) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildCategoryHeader(entry.key, entry.value.length),
-                ...entry.value.map((task) => TaskItem(task: task)),
-                const SizedBox(height: 16),
-              ],
-            );
-          }),
-          const SizedBox(height: 80),
-        ],
-      ),
+      itemCount: groupedTasks.length + 1, // +1 for extra spacing at bottom
+      itemBuilder: (context, index) {
+        if (index == groupedTasks.length) return const SizedBox(height: 80);
+
+        final category = groupedTasks.keys.elementAt(index);
+        final categoryTasks = groupedTasks[category]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCategoryHeader(category, categoryTasks.length),
+            ...categoryTasks.map((task) => TaskItem(task: task)),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
     );
   }
 
@@ -308,12 +346,12 @@ class _TasksScreenState extends State<TasksScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (overdue.isNotEmpty) ...[
-            _buildSectionHeader('Overdue', overdue.length, AppTheme.errorColor),
+            _buildSectionLabel('Overdue', overdue.length, AppTheme.errorColor),
             ...overdue.map((task) => TaskItem(task: task)),
             const SizedBox(height: 16),
           ],
           if (pending.isNotEmpty) ...[
-            _buildSectionHeader(
+            _buildSectionLabel(
               'Due Today',
               pending.length,
               AppTheme.warningColor,
@@ -322,7 +360,7 @@ class _TasksScreenState extends State<TasksScreen>
             const SizedBox(height: 16),
           ],
           if (completed.isNotEmpty) ...[
-            _buildSectionHeader(
+            _buildSectionLabel(
               'Completed',
               completed.length,
               AppTheme.successColor,
@@ -342,32 +380,35 @@ class _TasksScreenState extends State<TasksScreen>
         children: [
           Container(
             width: 4,
-            height: 20,
+            height: 18,
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Text(
             category.toUpperCase(),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+              letterSpacing: 1.1,
+              color: AppTheme.textSecondary,
+              fontSize: 13,
             ),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.2),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '$count',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.primaryColor,
+              style: GoogleFonts.inter(
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
               ),
             ),
           ),
@@ -376,41 +417,40 @@ class _TasksScreenState extends State<TasksScreen>
     );
   }
 
-  Widget _buildSectionHeader(String title, int count, Color color) {
+  Widget _buildSectionLabel(String title, int count, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: FaIcon(
-              title == 'Overdue'
-                  ? FontAwesomeIcons.exclamation
-                  : title == 'Due Today'
-                  ? FontAwesomeIcons.clock
-                  : FontAwesomeIcons.check,
-              size: 14,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+          FaIcon(
+            title == 'Overdue'
+                ? FontAwesomeIcons.triangleExclamation
+                : title == 'Due Today'
+                ? FontAwesomeIcons.clock
+                : FontAwesomeIcons.check,
+            size: 14,
+            color: color,
           ),
           const SizedBox(width: 8),
           Text(
-            '($count)',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: color),
+            title,
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
           ),
         ],
       ),
@@ -424,27 +464,29 @@ class _TasksScreenState extends State<TasksScreen>
         children: [
           FaIcon(
             icon ?? FontAwesomeIcons.clipboardCheck,
-            size: 64,
-            color: Theme.of(
-              context,
-            ).textTheme.bodySmall?.color?.withOpacity(0.5),
+            size: 60,
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           Text(
             message ??
                 (_searchQuery.isNotEmpty
                     ? 'No matching tasks'
                     : 'No tasks yet'),
-            style: Theme.of(context).textTheme.titleLarge,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'Try adjusting your search or filters'
-                : 'Add a task to get started',
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
+          if (_searchQuery.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Tap + to create a new task',
+                style: GoogleFonts.inter(color: Colors.grey),
+              ),
+            ),
         ],
       ),
     );
@@ -477,23 +519,35 @@ class _TasksScreenState extends State<TasksScreen>
   void _showSortOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Sort By', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Sort By',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             ...['Date', 'Priority', 'Name'].map((option) {
-              return RadioListTile<String>(
-                title: Text(option),
-                value: option,
-                groupValue: _sortBy,
-                onChanged: (value) {
-                  setState(() => _sortBy = value!);
+              return ListTile(
+                title: Text(option, style: GoogleFonts.inter()),
+                trailing: _sortBy == option
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
+                onTap: () {
+                  setState(() => _sortBy = option);
                   Navigator.pop(context);
                 },
+                contentPadding: EdgeInsets.zero,
               );
             }),
           ],
@@ -506,27 +560,40 @@ class _TasksScreenState extends State<TasksScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Completed Tasks?'),
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Clear Completed?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
         content: Text(
-          'This will delete ${provider.completedTasks.length} completed tasks.',
+          'Delete ${provider.completedTasks.length} completed tasks?',
+          style: GoogleFonts.inter(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: GoogleFonts.inter()),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               for (var task in provider.completedTasks.toList()) {
                 provider.deleteTask(task.id ?? '');
               }
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Completed tasks cleared')),
+                SnackBar(
+                  content: Text(
+                    'Completed tasks cleared',
+                    style: GoogleFonts.inter(),
+                  ),
+                ),
               );
             },
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: const Text('Clear'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+            ),
+            child: Text('Clear', style: GoogleFonts.inter(color: Colors.white)),
           ),
         ],
       ),
@@ -544,11 +611,16 @@ class _TasksScreenState extends State<TasksScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
           children: [
-            FaIcon(FontAwesomeIcons.chartLine, size: 20),
-            SizedBox(width: 12),
-            Text('Task Statistics'),
+            const FaIcon(FontAwesomeIcons.chartLine, size: 20),
+            const SizedBox(width: 12),
+            Text(
+              'Statistics',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -575,7 +647,7 @@ class _TasksScreenState extends State<TasksScreen>
             _buildStatRow(
               'High Priority',
               '$highPriority',
-              FontAwesomeIcons.exclamation,
+              FontAwesomeIcons.triangleExclamation,
               AppTheme.errorColor,
             ),
           ],
@@ -583,7 +655,7 @@ class _TasksScreenState extends State<TasksScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text('Close', style: GoogleFonts.inter()),
           ),
         ],
       ),
@@ -591,34 +663,23 @@ class _TasksScreenState extends State<TasksScreen>
   }
 
   Widget _buildStatRow(String label, String value, IconData icon, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: FaIcon(icon, color: Colors.white, size: 16),
+            child: FaIcon(icon, size: 14, color: color),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.titleSmall),
-          ),
+          const SizedBox(width: 16),
+          Expanded(child: Text(label, style: GoogleFonts.inter())),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),

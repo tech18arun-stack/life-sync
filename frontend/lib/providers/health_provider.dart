@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/health_record.dart';
-import '../services/api_service.dart';
+import '../services/supabase_service.dart';
 
 class HealthProvider with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
   List<HealthRecord> _healthRecords = [];
   bool _isLoading = false;
   String? _error;
@@ -18,7 +18,7 @@ class HealthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _api.getHealthRecords();
+      final data = await _supabase.getHealthRecords(); // Add userId filter if needed
       _healthRecords = data.map((r) => HealthRecord.fromJson(r)).toList();
     } catch (e) {
       _error = e.toString();
@@ -34,7 +34,7 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> addHealthRecord(HealthRecord record) async {
     try {
-      final response = await _api.createHealthRecord(record.toJson());
+      final response = await _supabase.createHealthRecord(record.toJson());
       final newRecord = HealthRecord.fromJson(response);
       _healthRecords.add(newRecord);
       notifyListeners();
@@ -46,7 +46,7 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> updateHealthRecord(HealthRecord record) async {
     try {
-      final response = await _api.updateHealthRecord(
+      final response = await _supabase.updateHealthRecord(
         record.id!,
         record.toJson(),
       );
@@ -64,7 +64,7 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> deleteHealthRecord(String id) async {
     try {
-      await _api.deleteHealthRecord(id);
+      await _supabase.deleteHealthRecord(id);
       _healthRecords.removeWhere((r) => r.id == id);
       notifyListeners();
     } catch (e) {

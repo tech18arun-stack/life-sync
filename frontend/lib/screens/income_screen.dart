@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
 import '../widgets/add_income_dialog.dart';
@@ -31,26 +33,55 @@ class _IncomeScreenState extends State<IncomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Theme Colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text('Income & Balance'),
-          backgroundColor: Colors.transparent,
+          title: Text(
+            'Income & Balance',
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+          ),
+          backgroundColor: backgroundColor,
           elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textPrimary),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           bottom: TabBar(
             controller: _tabController,
-            tabs: [
+            labelColor: AppTheme.successColor,
+            unselectedLabelColor: textSecondary,
+            indicatorColor: AppTheme.successColor,
+            indicatorWeight: 3,
+            labelStyle: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+            tabs: const [
               Tab(
-                icon: FaIcon(FontAwesomeIcons.coins, size: 20),
+                icon: FaIcon(FontAwesomeIcons.coins, size: 16),
                 text: 'Overview',
               ),
               Tab(
-                icon: FaIcon(FontAwesomeIcons.calendarWeek, size: 20),
+                icon: FaIcon(FontAwesomeIcons.calendarWeek, size: 16),
                 text: 'Monthly',
               ),
               Tab(
-                icon: FaIcon(FontAwesomeIcons.chartLine, size: 20),
+                icon: FaIcon(FontAwesomeIcons.chartLine, size: 16),
                 text: 'Yearly',
               ),
             ],
@@ -65,6 +96,7 @@ class _IncomeScreenState extends State<IncomeScreen>
             );
           },
           backgroundColor: AppTheme.successColor,
+          foregroundColor: Colors.white,
           icon: const FaIcon(FontAwesomeIcons.plus),
           label: const Text('Add Income'),
         ),
@@ -73,9 +105,27 @@ class _IncomeScreenState extends State<IncomeScreen>
             return TabBarView(
               controller: _tabController,
               children: [
-                _buildOverviewTab(financialManager),
-                _buildMonthlyTab(financialManager),
-                _buildYearlyTab(financialManager),
+                _buildOverviewTab(
+                  financialManager,
+                  isDark,
+                  cardColor,
+                  textPrimary,
+                  textSecondary,
+                ),
+                _buildMonthlyTab(
+                  financialManager,
+                  isDark,
+                  cardColor,
+                  textPrimary,
+                  textSecondary,
+                ),
+                _buildYearlyTab(
+                  financialManager,
+                  isDark,
+                  cardColor,
+                  textPrimary,
+                  textSecondary,
+                ),
               ],
             );
           },
@@ -84,7 +134,13 @@ class _IncomeScreenState extends State<IncomeScreen>
     );
   }
 
-  Widget _buildOverviewTab(FinancialDataManager manager) {
+  Widget _buildOverviewTab(
+    FinancialDataManager manager,
+    bool isDark,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final totalIncome = manager.getTotalIncome();
     final totalExpenses = manager.getTotalExpenses();
     final availableBalance = manager.getAvailableBalance();
@@ -97,14 +153,14 @@ class _IncomeScreenState extends State<IncomeScreen>
         // Main Balance Card
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     AppTheme.successColor,
-                    AppTheme.successColor.withOpacity(0.7),
+                    const Color(0xFF1B5E20), // Darker green
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -112,7 +168,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.successColor.withOpacity(0.3),
+                    color: AppTheme.successColor.withValues(alpha: 0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
@@ -124,9 +180,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Available Balance',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white70,
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -138,7 +194,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -151,7 +207,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                             const SizedBox(width: 6),
                             Text(
                               'Overall',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -165,7 +221,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                   const SizedBox(height: 12),
                   Text(
                     '₹${availableBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
@@ -173,7 +229,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Divider(color: Colors.white.withOpacity(0.3)),
+                  Divider(color: Colors.white.withValues(alpha: 0.3)),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -199,14 +255,14 @@ class _IncomeScreenState extends State<IncomeScreen>
         // Monthly Summary Card
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.8),
-                    AppTheme.accentColor.withOpacity(0.8),
+                    AppTheme.primaryColor.withValues(alpha: 0.8),
+                    AppTheme.accentColor.withValues(alpha: 0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -214,7 +270,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -226,9 +282,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'This Month',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -236,7 +292,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                       ),
                       Text(
                         DateFormat('MMMM yyyy').format(DateTime.now()),
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white70,
                           fontSize: 14,
                         ),
@@ -246,16 +302,19 @@ class _IncomeScreenState extends State<IncomeScreen>
                   const SizedBox(height: 16),
                   Text(
                     '₹${monthlyAvailable.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Available this month',
-                    style: TextStyle(color: Colors.white60, fontSize: 14),
+                    style: GoogleFonts.inter(
+                      color: Colors.white60,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -264,9 +323,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Income',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white70,
                                 fontSize: 12,
                               ),
@@ -274,7 +333,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                             const SizedBox(height: 4),
                             Text(
                               '₹${monthlyIncome.toStringAsFixed(0)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -287,9 +346,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Expenses',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white70,
                                 fontSize: 12,
                               ),
@@ -297,7 +356,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                             const SizedBox(height: 4),
                             Text(
                               '₹${monthlyExpenses.toStringAsFixed(0)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -319,15 +378,17 @@ class _IncomeScreenState extends State<IncomeScreen>
         // Statistics Grid
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Financial Overview',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -339,6 +400,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         '${manager.getSavingsPercentage().toStringAsFixed(1)}%',
                         FontAwesomeIcons.chartPie,
                         AppTheme.accentColor,
+                        cardColor,
+                        textPrimary,
+                        textSecondary,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -349,6 +413,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         '${manager.getIncomeBySource().length}',
                         FontAwesomeIcons.briefcase,
                         AppTheme.primaryColor,
+                        cardColor,
+                        textPrimary,
+                        textSecondary,
                       ),
                     ),
                   ],
@@ -363,6 +430,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         '${manager.incomes.length}',
                         FontAwesomeIcons.receipt,
                         AppTheme.warningColor,
+                        cardColor,
+                        textPrimary,
+                        textSecondary,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -373,6 +443,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                         manager.getFinancialHealthScore().toStringAsFixed(0),
                         FontAwesomeIcons.heartPulse,
                         AppTheme.healthColor,
+                        cardColor,
+                        textPrimary,
+                        textSecondary,
                       ),
                     ),
                   ],
@@ -387,15 +460,17 @@ class _IncomeScreenState extends State<IncomeScreen>
         // Recent Income List Header
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Recent Income',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: () => _tabController.animateTo(1),
@@ -407,21 +482,35 @@ class _IncomeScreenState extends State<IncomeScreen>
           ),
         ),
 
-        _buildIncomeList(manager, limit: 5),
+        _buildIncomeList(
+          context,
+          manager,
+          cardColor,
+          textPrimary,
+          textSecondary,
+          limit: 5,
+        ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 
-  Widget _buildMonthlyTab(FinancialDataManager manager) {
+  Widget _buildMonthlyTab(
+    FinancialDataManager manager,
+    bool isDark,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final now = DateTime.now();
-    final months = List.generate(12, (index) {
-      return DateTime(now.year, now.month - index, 1);
-    });
+    final months = List.generate(
+      12,
+      (index) => DateTime(now.year, now.month - index, 1),
+    );
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: months.length,
       itemBuilder: (context, index) {
         final month = months[index];
@@ -435,17 +524,26 @@ class _IncomeScreenState extends State<IncomeScreen>
           monthIncome,
           monthExpenses,
           monthAvailable,
+          cardColor,
+          textPrimary,
+          textSecondary,
         );
       },
     );
   }
 
-  Widget _buildYearlyTab(FinancialDataManager manager) {
+  Widget _buildYearlyTab(
+    FinancialDataManager manager,
+    bool isDark,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final now = DateTime.now();
     final years = List.generate(5, (index) => now.year - index);
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: years.length,
       itemBuilder: (context, index) {
         final year = years[index];
@@ -459,6 +557,9 @@ class _IncomeScreenState extends State<IncomeScreen>
           yearIncome,
           yearExpenses,
           yearAvailable,
+          cardColor,
+          textPrimary,
+          textSecondary,
         );
       },
     );
@@ -470,6 +571,9 @@ class _IncomeScreenState extends State<IncomeScreen>
     double income,
     double expenses,
     double available,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
   ) {
     final isCurrentMonth =
         month.year == DateTime.now().year &&
@@ -480,13 +584,13 @@ class _IncomeScreenState extends State<IncomeScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isCurrentMonth
-            ? AppTheme.primaryColor.withOpacity(0.1)
-            : Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+            : cardColor,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isCurrentMonth
-              ? AppTheme.primaryColor.withOpacity(0.3)
-              : Theme.of(context).dividerColor,
+              ? AppTheme.primaryColor.withValues(alpha: 0.3)
+              : Colors.transparent,
           width: isCurrentMonth ? 2 : 1,
         ),
       ),
@@ -498,9 +602,10 @@ class _IncomeScreenState extends State<IncomeScreen>
             children: [
               Text(
                 DateFormat('MMMM yyyy').format(month),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
-                  color: isCurrentMonth ? AppTheme.primaryColor : null,
+                  color: isCurrentMonth ? AppTheme.primaryColor : textPrimary,
+                  fontSize: 16,
                 ),
               ),
               if (isCurrentMonth)
@@ -513,9 +618,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                     color: AppTheme.primaryColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Current',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -564,6 +669,9 @@ class _IncomeScreenState extends State<IncomeScreen>
     double income,
     double expenses,
     double available,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
   ) {
     final isCurrentYear = year == DateTime.now().year;
 
@@ -571,20 +679,13 @@ class _IncomeScreenState extends State<IncomeScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: isCurrentYear
-            ? LinearGradient(
-                colors: [
-                  AppTheme.accentColor.withOpacity(0.2),
-                  AppTheme.primaryColor.withOpacity(0.2),
-                ],
-              )
-            : null,
-        color: isCurrentYear ? null : Theme.of(context).cardColor,
+        color:
+            cardColor, // Always use card color, handle active state with border
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isCurrentYear
-              ? AppTheme.accentColor.withOpacity(0.4)
-              : Theme.of(context).dividerColor,
+              ? AppTheme.accentColor.withValues(alpha: 0.4)
+              : Colors.transparent,
           width: isCurrentYear ? 2 : 1,
         ),
       ),
@@ -596,9 +697,10 @@ class _IncomeScreenState extends State<IncomeScreen>
             children: [
               Text(
                 year.toString(),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
-                  color: isCurrentYear ? AppTheme.accentColor : null,
+                  fontSize: 24,
+                  color: isCurrentYear ? AppTheme.accentColor : textPrimary,
                 ),
               ),
               if (isCurrentYear)
@@ -611,9 +713,9 @@ class _IncomeScreenState extends State<IncomeScreen>
                     color: AppTheme.accentColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Current Year',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -625,7 +727,7 @@ class _IncomeScreenState extends State<IncomeScreen>
           const SizedBox(height: 20),
           Text(
             '₹${available.toStringAsFixed(2)}',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: available >= 0
@@ -634,9 +736,9 @@ class _IncomeScreenState extends State<IncomeScreen>
             ),
           ),
           const SizedBox(height: 4),
-          Text('Net Balance', style: Theme.of(context).textTheme.bodyMedium),
+          Text('Net Balance', style: GoogleFonts.inter(color: textSecondary)),
           const SizedBox(height: 20),
-          Divider(color: Theme.of(context).dividerColor),
+          Divider(color: Colors.grey.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -654,14 +756,18 @@ class _IncomeScreenState extends State<IncomeScreen>
                         const SizedBox(width: 8),
                         Text(
                           'Income',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: GoogleFonts.inter(
+                            color: textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '₹${income.toStringAsFixed(0)}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.successColor,
                       ),
@@ -683,14 +789,18 @@ class _IncomeScreenState extends State<IncomeScreen>
                         const SizedBox(width: 8),
                         Text(
                           'Expenses',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: GoogleFonts.inter(
+                            color: textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '₹${expenses.toStringAsFixed(0)}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.errorColor,
                       ),
@@ -715,14 +825,14 @@ class _IncomeScreenState extends State<IncomeScreen>
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           '₹${amount.toStringAsFixed(0)}',
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -738,13 +848,22 @@ class _IncomeScreenState extends State<IncomeScreen>
     String value,
     IconData icon,
     Color color,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -753,14 +872,17 @@ class _IncomeScreenState extends State<IncomeScreen>
           const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           const SizedBox(height: 4),
-          Text(title, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            title,
+            style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+          ),
         ],
       ),
     );
@@ -777,10 +899,10 @@ class _IncomeScreenState extends State<IncomeScreen>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: FaIcon(icon, color: color, size: 16),
+          child: FaIcon(icon, color: color, size: 14),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -789,11 +911,11 @@ class _IncomeScreenState extends State<IncomeScreen>
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
               ),
               Text(
                 '₹${amount.toStringAsFixed(0)}',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: color,
@@ -806,7 +928,14 @@ class _IncomeScreenState extends State<IncomeScreen>
     );
   }
 
-  SliverList _buildIncomeList(FinancialDataManager manager, {int? limit}) {
+  SliverList _buildIncomeList(
+    BuildContext context,
+    FinancialDataManager manager,
+    Color cardColor,
+    Color textPrimary,
+    Color textSecondary, {
+    int? limit,
+  }) {
     final incomes = limit != null
         ? manager.incomes.take(limit).toList()
         : manager.incomes;
@@ -822,17 +951,20 @@ class _IncomeScreenState extends State<IncomeScreen>
                   FaIcon(
                     FontAwesomeIcons.moneyBillTrendUp,
                     size: 64,
-                    color: Colors.grey.withOpacity(0.5),
+                    color: textSecondary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'No income records yet',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Add your first income to get started',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: GoogleFonts.inter(color: textSecondary),
                   ),
                 ],
               ),
@@ -851,11 +983,11 @@ class _IncomeScreenState extends State<IncomeScreen>
           key: Key(income.id ?? ''),
           direction: DismissDirection.endToStart,
           background: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             padding: const EdgeInsets.only(right: 20),
             decoration: BoxDecoration(
               color: AppTheme.errorColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
             ),
             alignment: Alignment.centerRight,
             child: const FaIcon(FontAwesomeIcons.trash, color: Colors.white),
@@ -867,12 +999,18 @@ class _IncomeScreenState extends State<IncomeScreen>
             ).showSnackBar(const SnackBar(content: Text('Income deleted')));
           },
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: color.withOpacity(0.3)),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: InkWell(
                 onTap: () {
@@ -881,7 +1019,7 @@ class _IncomeScreenState extends State<IncomeScreen>
                     builder: (context) => AddIncomeDialog(income: income),
                   );
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -889,13 +1027,13 @@ class _IncomeScreenState extends State<IncomeScreen>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          color: color.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
                         ),
                         child: FaIcon(
                           FontAwesomeIcons.moneyBill,
                           color: color,
-                          size: 24,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -905,63 +1043,48 @@ class _IncomeScreenState extends State<IncomeScreen>
                           children: [
                             Text(
                               income.title,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
                                 Text(
                                   income.source,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: GoogleFonts.inter(
+                                    color: textSecondary,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                                const Text(' • '),
+                                Text(
+                                  ' • ',
+                                  style: GoogleFonts.inter(
+                                    color: textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 Text(
                                   DateFormat('MMM d, yyyy').format(income.date),
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: GoogleFonts.inter(
+                                    color: textSecondary,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
-                            if (income.isRecurring) ...[
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  FaIcon(
-                                    FontAwesomeIcons.arrowsRotate,
-                                    size: 12,
-                                    color: AppTheme.accentColor,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Recurring ${income.recurringType ?? ""}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.accentColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
                           ],
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '+₹${income.amount.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              color: AppTheme.successColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            income.paymentMethod ?? 'Not specified',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      Text(
+                        '+₹${income.amount.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ],
                   ),

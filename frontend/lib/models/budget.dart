@@ -1,6 +1,7 @@
-/// Budget model for MongoDB
+/// Budget model for Supabase
 class Budget {
   String? id;
+  String? userId;
   String category;
   double allocatedAmount;
   double spentAmount;
@@ -37,6 +38,7 @@ class Budget {
 
   Budget({
     this.id,
+    this.userId,
     required this.category,
     required this.allocatedAmount,
     this.spentAmount = 0,
@@ -50,34 +52,36 @@ class Budget {
 
   factory Budget.fromJson(Map<String, dynamic> json) {
     return Budget(
-      id: json['_id'] ?? json['id'],
+      id: json['id'],
+      userId: json['user_id'],
       category: json['category'] ?? 'Other',
-      allocatedAmount: (json['allocatedAmount'] ?? json['amount'] ?? 0)
+      allocatedAmount: (json['allocated_amount'] ?? json['amount'] ?? 0)
           .toDouble(),
-      spentAmount: (json['spentAmount'] ?? 0).toDouble(),
+      spentAmount: (json['spent_amount'] ?? 0).toDouble(),
       month: json['month'] ?? DateTime.now().month,
       year: json['year'] ?? DateTime.now().year,
-      isActive: json['isActive'] ?? true,
-      alertThreshold: (json['alertThreshold'] ?? 80).toDouble(),
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
+      isActive: json['is_active'] ?? true,
+      alertThreshold: (json['alert_threshold'] ?? 80).toDouble(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
           : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) '_id': id,
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
       'category': category,
-      'allocatedAmount': allocatedAmount,
-      'spentAmount': spentAmount,
+      'allocated_amount': allocatedAmount,
+      'spent_amount': spentAmount,
       'month': month,
       'year': year,
-      'isActive': isActive,
-      'alertThreshold': alertThreshold,
+      'is_active': isActive,
+      'alert_threshold': alertThreshold,
     };
   }
 
@@ -90,6 +94,7 @@ class Budget {
 
   Budget copyWith({
     String? id,
+    String? userId,
     String? category,
     double? allocatedAmount,
     double? spentAmount,
@@ -100,6 +105,7 @@ class Budget {
   }) {
     return Budget(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       category: category ?? this.category,
       allocatedAmount: allocatedAmount ?? this.allocatedAmount,
       spentAmount: spentAmount ?? this.spentAmount,

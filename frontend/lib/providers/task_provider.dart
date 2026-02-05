@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/api_service.dart';
+import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 
 class TaskProvider with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
   final _notificationService = NotificationService();
 
   List<Task> _tasks = [];
@@ -21,7 +21,7 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _api.getTasks();
+      final data = await _supabase.getTasks(); // Add userId filter if needed
       _tasks = data.map((t) => Task.fromJson(t)).toList();
     } catch (e) {
       _error = e.toString();
@@ -37,7 +37,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> addTask(Task task) async {
     try {
-      final response = await _api.createTask(task.toJson());
+      final response = await _supabase.createTask(task.toJson());
       final newTask = Task.fromJson(response);
       _tasks.add(newTask);
 
@@ -53,7 +53,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> updateTask(Task task) async {
     try {
-      final response = await _api.updateTask(task.id!, task.toJson());
+      final response = await _supabase.updateTask(task.id!, task.toJson());
       final updatedTask = Task.fromJson(response);
       final index = _tasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
@@ -73,7 +73,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> deleteTask(String id) async {
     try {
-      await _api.deleteTask(id);
+      await _supabase.deleteTask(id);
       _tasks.removeWhere((t) => t.id == id);
 
       // Cancel notifications for deleted task
@@ -91,14 +91,11 @@ class TaskProvider with ChangeNotifier {
       final task = _tasks.firstWhere((t) => t.id == id);
 
       if (!task.isCompleted) {
-        // Mark as complete via API
-        final response = await _api.completeTask(id);
-        final updatedTask = Task.fromJson(response);
-        final index = _tasks.indexWhere((t) => t.id == id);
-        if (index != -1) {
-          _tasks[index] = updatedTask;
-          _notificationService.cancelTaskNotifications(id);
-        }
+        // Mark as complete - update the task status
+        task.isCompleted = true;
+        task.status = 'Completed';
+        await updateTask(task);
+        _notificationService.cancelTaskNotifications(id);
       } else {
         // Toggle back to incomplete
         task.isCompleted = false;

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import '../models/family_number.dart';
-import '../services/api_service.dart';
+import '../services/supabase_service.dart';
 
-/// Provider for managing family phone numbers via MongoDB
+/// Provider for managing family phone numbers via Supabase
 class FamilyNumberProvider with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
 
   List<FamilyNumber> _numbers = [];
   bool _isLoading = false;
@@ -30,7 +30,7 @@ class FamilyNumberProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _api.getFamilyNumbers();
+      final data = await _supabase.getFamilyNumbers(); // Add userId filter if needed
       _numbers = data.map((n) => FamilyNumber.fromJson(n)).toList();
     } catch (e) {
       _error = e.toString();
@@ -43,7 +43,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> addNumber(FamilyNumber number) async {
     try {
-      final response = await _api.createFamilyNumber(number.toJson());
+      final response = await _supabase.createFamilyNumber(number.toJson());
       final newNumber = FamilyNumber.fromJson(response);
       _numbers.add(newNumber);
       notifyListeners();
@@ -55,7 +55,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> updateNumber(FamilyNumber number) async {
     try {
-      final response = await _api.updateFamilyNumber(
+      final response = await _supabase.updateFamilyNumber(
         number.id!,
         number.toJson(),
       );
@@ -73,7 +73,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> deleteNumber(String id) async {
     try {
-      await _api.deleteFamilyNumber(id);
+      await _supabase.deleteFamilyNumber(id);
       _numbers.removeWhere((n) => n.id == id);
       notifyListeners();
     } catch (e) {

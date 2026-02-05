@@ -29,12 +29,32 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   final List<String> _categories = [
     'general',
     'shopping',
+    'groceries',
     'chores',
     'bills',
+    'mobile recharge',
+    'dth',
+    'internet bill',
     'school',
+    'tuition',
+    'education fee',
     'work',
     'personal',
     'family',
+    'family outing',
+    'family dinner',
+    'kids',
+    'childcare',
+    'pets',
+    'pet care',
+    'home maintenance',
+    'cleaning supplies',
+    'furniture',
+    'car service',
+    'health checkup',
+    'medical',
+    'insurance',
+    'tax payment',
   ];
 
   @override
@@ -402,7 +422,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
     }
   }
 
-  void _saveTask() {
+  Future<void> _saveTask() async {
     if (_formKey.currentState!.validate()) {
       if (_hasDueDate && _dueDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -439,15 +459,27 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
             : _assignedToController.text,
       );
 
-      Provider.of<TaskProvider>(context, listen: false).addTask(task);
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Task added successfully!'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
+      try {
+        await Provider.of<TaskProvider>(context, listen: false).addTask(task);
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task added successfully!'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
     }
   }
 }

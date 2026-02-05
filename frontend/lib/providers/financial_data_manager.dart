@@ -2,18 +2,22 @@ import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../models/budget.dart';
-import '../services/api_service.dart';
+import '../models/reminder.dart';
+import '../models/task.dart';
+import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 
 /// Centralized Financial Data Manager
-/// Manages all financial data (income, expenses, budgets) via MongoDB API
+/// Manages all financial data (income, expenses, budgets, reminders, tasks) via Supabase
 class FinancialDataManager with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
 
   // Lists
   List<Expense> _expenses = [];
   List<Income> _incomes = [];
   List<Budget> _budgets = [];
+  List<Reminder> _reminders = [];
+  List<Task> _tasks = [];
 
   // Loading states
   bool _isLoading = false;
@@ -23,17 +27,25 @@ class FinancialDataManager with ChangeNotifier {
   List<Expense> get expenses => _expenses;
   List<Income> get incomes => _incomes;
   List<Budget> get budgets => _budgets;
+  List<Reminder> get reminders => _reminders;
+  List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Initialization - Load data from API
+  // Initialization - Load data from Supabase
   Future<void> initialize() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await Future.wait([_loadExpenses(), _loadIncomes(), _loadBudgets()]);
+      await Future.wait([
+        _loadExpenses(),
+        _loadIncomes(),
+        _loadBudgets(),
+        _loadReminders(),
+        _loadTasks(),
+      ]);
     } catch (e) {
       _error = e.toString();
       debugPrint('Error initializing financial data: $e');
@@ -50,7 +62,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadExpenses() async {
     try {
-      final data = await _api.getExpenses();
+      final data = await _supabase.getExpenses(); // Add userId filter if needed
       _expenses = data.map((e) => Expense.fromJson(e)).toList();
     } catch (e) {
       debugPrint('Error loading expenses: $e');
@@ -59,7 +71,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadIncomes() async {
     try {
-      final data = await _api.getIncomes();
+      final data = await _supabase.getIncomes(); // Add userId filter if needed
       _incomes = data.map((i) => Income.fromJson(i)).toList();
     } catch (e) {
       debugPrint('Error loading incomes: $e');
@@ -68,10 +80,28 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadBudgets() async {
     try {
-      final data = await _api.getBudgets();
+      final data = await _supabase.getBudgets(); // Add userId filter if needed
       _budgets = data.map((b) => Budget.fromJson(b)).toList();
     } catch (e) {
       debugPrint('Error loading budgets: $e');
+    }
+  }
+
+  Future<void> _loadReminders() async {
+    try {
+      final data = await _supabase.getReminders(); // Add userId filter if needed
+      _reminders = data.map((r) => Reminder.fromJson(r)).toList();
+    } catch (e) {
+      debugPrint('Error loading reminders: $e');
+    }
+  }
+
+  Future<void> _loadTasks() async {
+    try {
+      final data = await _supabase.getTasks(); // Add userId filter if needed
+      _tasks = data.map((t) => Task.fromJson(t)).toList();
+    } catch (e) {
+      debugPrint('Error loading tasks: $e');
     }
   }
 
@@ -79,7 +109,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addIncome(Income income) async {
     try {
-      final response = await _api.createIncome(income.toJson());
+      final response = await _supabase.createIncome(income.toJson());
       final newIncome = Income.fromJson(response);
       _incomes.add(newIncome);
       notifyListeners();
@@ -91,7 +121,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateIncome(Income income) async {
     try {
-      final response = await _api.updateIncome(income.id!, income.toJson());
+      final response = await _supabase.updateIncome(income.id!, income.toJson());
       final updatedIncome = Income.fromJson(response);
       final index = _incomes.indexWhere((i) => i.id == income.id);
       if (index != -1) {
@@ -106,7 +136,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteIncome(String id) async {
     try {
-      await _api.deleteIncome(id);
+      await _supabase.deleteIncome(id);
       _incomes.removeWhere((i) => i.id == id);
       notifyListeners();
     } catch (e) {
@@ -161,7 +191,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addExpense(Expense expense) async {
     try {
-      final response = await _api.createExpense(expense.toJson());
+      final response = await _supabase.createExpense(expense.toJson());
       final newExpense = Expense.fromJson(response);
       _expenses.add(newExpense);
 
@@ -182,7 +212,7 @@ class FinancialDataManager with ChangeNotifier {
       // Reverse old expense effect on budget
       await _updateBudgetSpending(oldExpense.category, -oldExpense.amount);
 
-      final response = await _api.updateExpense(expense.id!, expense.toJson());
+      final response = await _supabase.updateExpense(expense.id!, expense.toJson());
       final updatedExpense = Expense.fromJson(response);
 
       // Apply new expense effect on budget
@@ -206,7 +236,7 @@ class FinancialDataManager with ChangeNotifier {
       // Reverse expense effect on budget
       await _updateBudgetSpending(expense.category, -expense.amount);
 
-      await _api.deleteExpense(id);
+      await _supabase.deleteExpense(id);
       _expenses.removeWhere((e) => e.id == id);
       notifyListeners();
     } catch (e) {
@@ -256,11 +286,183 @@ class FinancialDataManager with ChangeNotifier {
     return sorted.take(limit).toList();
   }
 
+  // ======================== REMINDER OPERATIONS ========================
+
+  Future<void> addReminder(Reminder reminder) async {
+    try {
+      final response = await _supabase.createReminder(reminder.toJson());
+      final newReminder = Reminder.fromJson(response);
+      _reminders.add(newReminder);
+      NotificationService().scheduleReminderNotification(newReminder);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding reminder: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateReminder(Reminder reminder) async {
+    try {
+      final response = await _supabase.updateReminder(
+        reminder.id!,
+        reminder.toJson(),
+      );
+      final updatedReminder = Reminder.fromJson(response);
+      final index = _reminders.indexWhere((r) => r.id == reminder.id);
+      if (index != -1) {
+        _reminders[index] = updatedReminder;
+        NotificationService().scheduleReminderNotification(updatedReminder);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error updating reminder: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteReminder(String id) async {
+    try {
+      await _supabase.deleteReminder(id);
+      NotificationService().cancelNotification(id.hashCode);
+      _reminders.removeWhere((r) => r.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting reminder: $e');
+      rethrow;
+    }
+  }
+
+  List<Reminder> getPendingReminders() {
+    return _reminders.where((r) => !r.isPaid).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+
+  List<Reminder> getOverdueReminders() {
+    return _reminders.where((r) => r.isOverdue).toList();
+  }
+
+  List<Reminder> getDueSoonReminders() {
+    return _reminders.where((r) => r.isDueSoon).toList();
+  }
+
+  List<Reminder> getRemindersByType(String type) {
+    return _reminders.where((r) => r.type == type).toList();
+  }
+
+  List<Reminder> getUpcomingReminders({int days = 30}) {
+    final endDate = DateTime.now().add(Duration(days: days));
+    return _reminders
+        .where(
+          (r) =>
+              !r.isPaid &&
+              r.dueDate.isAfter(DateTime.now()) &&
+              r.dueDate.isBefore(endDate),
+        )
+        .toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+
+  double getTotalPendingAmount() {
+    return _reminders
+        .where((r) => !r.isPaid && r.amount != null)
+        .fold(0, (sum, reminder) => sum + (reminder.amount ?? 0));
+  }
+
+  Map<String, int> getReminderCountByType() {
+    Map<String, int> counts = {};
+    for (var reminder in getPendingReminders()) {
+      counts[reminder.type] = (counts[reminder.type] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  // ======================== TASK OPERATIONS ========================
+
+  Future<void> addTask(Task task) async {
+    try {
+      final response = await _supabase.createTask(task.toJson());
+      final newTask = Task.fromJson(response);
+      _tasks.add(newTask);
+      NotificationService().scheduleTaskNotification(newTask);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding task: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateTask(Task task) async {
+    try {
+      final response = await _supabase.updateTask(
+        task.id!,
+        task.toJson(),
+      );
+      final updatedTask = Task.fromJson(response);
+      final index = _tasks.indexWhere((t) => t.id == task.id);
+      if (index != -1) {
+        _tasks[index] = updatedTask;
+        NotificationService().cancelTaskNotifications(task.id!);
+        NotificationService().scheduleTaskNotification(updatedTask);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error updating task: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteTask(String id) async {
+    try {
+      await _supabase.deleteTask(id);
+      NotificationService().cancelTaskNotifications(id);
+      _tasks.removeWhere((t) => t.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting task: $e');
+      rethrow;
+    }
+  }
+
+  List<Task> getPendingTasks() {
+    return _tasks.where((t) => !t.isCompleted).toList();
+  }
+
+  List<Task> getCompletedTasks() {
+    return _tasks.where((t) => t.isCompleted).toList();
+  }
+
+  List<Task> getTasksByCategory(String category) {
+    return _tasks.where((t) => t.category == category).toList();
+  }
+
+  List<Task> getTasksByPriority(String priority) {
+    return _tasks.where((t) => t.priority == priority).toList();
+  }
+
+  List<Task> getOverdueTasks() {
+    final now = DateTime.now();
+    return _tasks.where((t) {
+      return !t.isCompleted && t.dueDate != null && t.dueDate!.isBefore(now);
+    }).toList();
+  }
+
+  List<Task> getTodayTasks() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    return _tasks.where((t) {
+      return t.dueDate != null &&
+          t.dueDate!.isAfter(today.subtract(const Duration(seconds: 1))) &&
+          t.dueDate!.isBefore(tomorrow);
+    }).toList();
+  }
+
   // ======================== BUDGET OPERATIONS ========================
 
   Future<void> addBudget(Budget budget) async {
     try {
-      final response = await _api.createBudget(budget.toJson());
+      final response = await _supabase.createBudget(budget.toJson());
       final newBudget = Budget.fromJson(response);
       _budgets.add(newBudget);
       notifyListeners();
@@ -272,7 +474,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateBudget(Budget budget) async {
     try {
-      final response = await _api.updateBudget(budget.id!, budget.toJson());
+      final response = await _supabase.updateBudget(budget.id!, budget.toJson());
       final updatedBudget = Budget.fromJson(response);
       final index = _budgets.indexWhere((b) => b.id == budget.id);
       if (index != -1) {
@@ -287,7 +489,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteBudget(String id) async {
     try {
-      await _api.deleteBudget(id);
+      await _supabase.deleteBudget(id);
       _budgets.removeWhere((b) => b.id == id);
       notifyListeners();
     } catch (e) {
@@ -352,8 +554,13 @@ class FinancialDataManager with ChangeNotifier {
       );
 
       if (budget.id != null) {
-        await _api.addBudgetSpending(budget.id!, amount);
+        // Update the spent amount in the budget object
         budget.spentAmount += amount;
+
+        // Update the budget in the database
+        final updatedBudgetData = budget.toJson();
+        await _supabase.updateBudget(budget.id!, updatedBudgetData);
+
         notifyListeners();
 
         if (budget.shouldAlert) {

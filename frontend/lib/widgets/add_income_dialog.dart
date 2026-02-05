@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../models/income.dart';
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AddIncomeDialog extends StatefulWidget {
   final Income? income;
@@ -39,6 +41,25 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
     'Dividend',
     'Refund',
     'Allowance',
+    'Pension',
+    'Stipend',
+    'Commission',
+    'Royalties',
+    'Side Hustle',
+    'Online Business',
+    'Part-time Job',
+    'Contract Work',
+    'Consulting',
+    'Teaching',
+    'Tutoring',
+    'Selling Products',
+    'Selling Services',
+    'Rental Income',
+    'Tips',
+    'Tax Refund',
+    'Insurance Payout',
+    'Legal Settlement',
+    'Inheritance',
     'Other',
   ];
 
@@ -49,7 +70,7 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
     super.initState();
     _titleController = TextEditingController(text: widget.income?.description);
     _amountController = TextEditingController(
-      text: widget.income?.amount.toString(),
+      text: widget.income != null ? widget.income!.amount.toString() : '',
     );
     _descriptionController = TextEditingController(text: widget.income?.notes);
     _selectedSource = widget.income?.source ?? 'Salary';
@@ -69,17 +90,29 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final inputFillColor = isDark
+        ? Colors.grey.withValues(alpha: 0.1)
+        : Colors.grey.withValues(alpha: 0.05);
+
     return Dialog(
-      backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      elevation: 10,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -88,8 +121,8 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.successColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppTheme.successColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
                         ),
                         child: const FaIcon(
                           FontAwesomeIcons.moneyBillTrendUp,
@@ -99,100 +132,113 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        widget.income == null ? 'Add Income' : 'Edit Income',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        widget.income == null ? 'New Income' : 'Edit Income',
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
                       ),
                     ],
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: textSecondary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: inputFillColor,
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
+              // Title
+              _buildLabel('Title'),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'e.g., Monthly Salary',
-                  prefixIcon: Icon(Icons.title),
+                style: GoogleFonts.inter(
+                  color: textPrimary,
+                  fontWeight: FontWeight.w500,
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+                decoration: _inputDecoration(
+                  'e.g., Monthly Salary',
+                  Icons.edit,
+                  inputFillColor,
+                  textSecondary,
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter a title'
+                    : null,
               ),
               const SizedBox(height: 16),
 
+              // Amount
+              _buildLabel('Amount'),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  hintText: '0.00',
-                  prefixIcon: Icon(Icons.currency_rupee),
+                style: GoogleFonts.inter(
+                  color: textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: _inputDecoration(
+                  '0.00',
+                  FontAwesomeIcons.indianRupeeSign,
+                  inputFillColor,
+                  textSecondary,
+                ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.isEmpty)
                     return 'Please enter an amount';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
+                  if (double.tryParse(value) == null) return 'Invalid number';
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
+              // Source
+              _buildLabel('Source'),
               DropdownButtonFormField<String>(
-                initialValue: _selectedSource,
-                decoration: const InputDecoration(
-                  labelText: 'Source',
-                  prefixIcon: Icon(Icons.source),
+                value: _selectedSource,
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  '',
+                  Icons.source,
+                  inputFillColor,
+                  textSecondary,
                 ),
-                items: _sources.map((source) {
-                  return DropdownMenuItem(value: source, child: Text(source));
-                }).toList(),
-                onChanged: (value) => setState(() => _selectedSource = value!),
-                dropdownColor: Theme.of(context).cardColor,
+                items: _sources
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedSource = val!),
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'Add notes',
-                  prefixIcon: Icon(Icons.notes),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
+              // Payment Method
+              _buildLabel('Received Via'),
               DropdownButtonFormField<String>(
-                initialValue: _selectedPaymentMethod,
-                decoration: const InputDecoration(
-                  labelText: 'Received Via',
-                  prefixIcon: Icon(Icons.payment),
+                value: _selectedPaymentMethod,
+                dropdownColor: cardColor,
+                style: GoogleFonts.inter(color: textPrimary),
+                decoration: _inputDecoration(
+                  '',
+                  Icons.payment,
+                  inputFillColor,
+                  textSecondary,
                 ),
-                items: ['Bank Transfer', 'Cash', 'Cheque', 'UPI', 'Other'].map((
-                  method,
-                ) {
-                  return DropdownMenuItem(value: method, child: Text(method));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPaymentMethod = value!;
-                  });
-                },
-                dropdownColor: Theme.of(context).cardColor,
+                items: ['Bank Transfer', 'Cash', 'Cheque', 'UPI', 'Other']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (val) =>
+                    setState(() => _selectedPaymentMethod = val!),
               ),
               const SizedBox(height: 16),
 
+              // Date
+              _buildLabel('Date'),
               InkWell(
                 onTap: () async {
                   final date = await showDatePicker(
@@ -206,16 +252,26 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(12),
+                    color: inputFillColor,
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 20,
+                        color: textSecondary,
+                      ),
                       const SizedBox(width: 12),
-                      Text(
-                        '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                      Expanded(
+                        child: Text(
+                          DateFormat('MMM d, yyyy').format(_selectedDate),
+                          style: GoogleFonts.inter(
+                            color: textPrimary,
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -223,49 +279,95 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
               ),
               const SizedBox(height: 16),
 
-              CheckboxListTile(
-                value: _isRecurring,
-                onChanged: (value) {
-                  setState(() {
-                    _isRecurring = value ?? false;
-                    if (!_isRecurring) _recurringType = null;
-                  });
-                },
-                title: const Text('Recurring Income'),
-                contentPadding: EdgeInsets.zero,
-                activeColor: AppTheme.successColor,
-              ),
-
-              if (_isRecurring) ...[
-                DropdownButtonFormField<String>(
-                  initialValue: _recurringType,
-                  decoration: const InputDecoration(
-                    labelText: 'Frequency',
-                    prefixIcon: Icon(Icons.repeat),
+              // Recurring Options
+              Container(
+                decoration: BoxDecoration(
+                  color: inputFillColor,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    'Recurring Income',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
                   ),
-                  items: _recurringTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type[0].toUpperCase() + type.substring(1)),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => _recurringType = value),
-                  dropdownColor: Theme.of(context).cardColor,
+                  value: _isRecurring,
+                  activeColor: AppTheme.successColor,
+                  onChanged: (val) {
+                    setState(() {
+                      _isRecurring = val;
+                      if (!_isRecurring)
+                        _recurringType = null;
+                      else
+                        _recurringType = 'monthly'; // default
+                    });
+                  },
+                ),
+              ),
+              if (_isRecurring) ...[
+                const SizedBox(height: 12),
+                _buildLabel('Frequency'),
+                DropdownButtonFormField<String>(
+                  value: _recurringType ?? 'monthly',
+                  dropdownColor: cardColor,
+                  style: GoogleFonts.inter(color: textPrimary),
+                  decoration: _inputDecoration(
+                    '',
+                    Icons.repeat,
+                    inputFillColor,
+                    textSecondary,
+                  ),
+                  items: _recurringTypes
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t[0].toUpperCase() + t.substring(1)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) => setState(() => _recurringType = val),
                 ),
               ],
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 24),
+              // Notes
+              _buildLabel('Notes (Optional)'),
+              TextFormField(
+                controller: _descriptionController,
+                style: GoogleFonts.inter(color: textPrimary),
+                maxLines: 2,
+                decoration: _inputDecoration(
+                  'Add notes...',
+                  Icons.notes,
+                  inputFillColor,
+                  textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
 
+              // Submit Button
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: _saveIncome,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.successColor,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: AppTheme.successColor.withValues(alpha: 0.4),
                   ),
                   child: Text(
                     widget.income == null ? 'Add Income' : 'Update Income',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -276,22 +378,60 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
     );
   }
 
-  void _saveIncome() {
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String hint,
+    IconData icon,
+    Color fillColor,
+    Color iconColor,
+  ) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: iconColor, size: 20),
+      filled: true,
+      fillColor: fillColor,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: AppTheme.successColor, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    );
+  }
+
+  Future<void> _saveIncome() async {
     if (_formKey.currentState!.validate()) {
       if (_isRecurring && _recurringType == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please select frequency for recurring income'),
+            content: Text('Select frequency'),
             backgroundColor: AppTheme.warningColor,
           ),
         );
         return;
       }
-
       final income = Income(
-        id: widget
-            .income
-            ?.id, // Don't generate UUID - let MongoDB create the _id
+        id: widget.income?.id,
         description: _titleController.text,
         amount: double.parse(_amountController.text),
         source: _selectedSource,
@@ -308,24 +448,36 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
         listen: false,
       );
 
-      if (widget.income == null) {
-        provider.addIncome(income);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Income added successfully!'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
-      } else {
-        provider.updateIncome(income);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Income updated successfully!'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
+      try {
+        if (widget.income == null) {
+          await provider.addIncome(income);
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Income added!'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+        } else {
+          await provider.updateIncome(income);
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Income updated!'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+        }
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
       }
-      Navigator.pop(context);
     }
   }
 }

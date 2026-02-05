@@ -1,34 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/financial_data_manager.dart';
-import '../providers/health_provider.dart';
-import '../providers/task_provider.dart';
-import '../providers/savings_goal_provider.dart';
-import '../providers/reminder_provider.dart';
-import '../providers/shopping_list_provider.dart';
-import '../providers/family_event_provider.dart';
-import '../services/gemini_service.dart';
-import '../utils/app_theme.dart';
-import '../widgets/stat_card.dart';
-import '../widgets/recent_expense_card.dart';
-import '../widgets/task_item.dart';
-import '../widgets/financial_health_card.dart';
-import '../widgets/budget_gauge_chart.dart';
-import '../widgets/ai_tips_card.dart';
-import '../widgets/financial_health_score.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../providers/financial_data_manager.dart';
+import '../providers/auth_provider.dart';
+import '../providers/reminder_provider.dart';
+import '../providers/savings_goal_provider.dart';
+import '../services/gemini_service.dart';
+import '../utils/app_theme.dart';
+
+import '../widgets/add_expense_dialog.dart';
+import '../widgets/add_income_dialog.dart';
+import '../widgets/add_budget_dialog.dart';
+
 import 'income_screen.dart';
 import 'budget_screen.dart';
 import 'reminder_screen.dart';
-import 'savings_goals_screen.dart';
-import 'shopping_list_screen.dart';
-import 'reports_screen.dart';
 import 'financial_calendar_screen.dart';
 import 'analytics_screen.dart';
-import '../widgets/spending_trends_chart.dart';
-import '../widgets/add_task_dialog.dart';
-import '../providers/family_provider.dart';
+import 'family_user_accounts_screen.dart';
+import 'history_screen.dart';
+import 'notification_history_screen.dart';
+import 'expenses_screen.dart';
+import 'health_screen.dart';
+import 'tasks_screen.dart';
+import 'settings_screen.dart';
+import 'savings_goals_screen.dart';
+import 'reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,8 +38,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _geminiService = GeminiService();
   bool _aiEnabled = false;
+  // ignore: unused_field
   bool _isLoadingTips = false;
   String? _aiTips;
   Map<String, dynamic>? _healthScore;
@@ -48,20 +48,27 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initializeAI();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ReminderProvider>(context, listen: false).initialize();
+      Provider.of<SavingsGoalProvider>(context, listen: false).initialize();
+    });
   }
 
   Future<void> _initializeAI() async {
-    await _geminiService.initialize();
-    final enabled = await _geminiService.isAIEnabled();
-    setState(() {
-      _aiEnabled = enabled;
-    });
-    if (_aiEnabled) {
-      _loadAIInsights();
+    final geminiService = Provider.of<GeminiService>(context, listen: false);
+    final enabled = await geminiService.isAIEnabled();
+    if (mounted) {
+      setState(() {
+        _aiEnabled = enabled;
+      });
+      if (_aiEnabled) {
+        _loadAIInsights();
+      }
     }
   }
 
   Future<void> _loadAIInsights() async {
+    if (!mounted) return;
     setState(() => _isLoadingTips = true);
 
     try {
@@ -74,617 +81,883 @@ class _HomeScreenState extends State<HomeScreen> {
       final income = financialManager.getMonthlyIncome();
       final totalExpenses = financialManager.getTotalExpenses();
 
-      // Calculate health score
-      final score = _geminiService.calculateFinancialHealth(
+      final geminiService = Provider.of<GeminiService>(context, listen: false);
+      final score = geminiService.calculateFinancialHealth(
         monthlyIncome: income,
         monthlyExpenses: totalExpenses,
-        totalSavings: 0, // This could be enhanced with savings data
+        totalSavings: 0,
         budgets: budgets,
       );
 
-      // Generate AI tips
       String tips = '';
       if (expenses.isNotEmpty && budgets.isNotEmpty) {
-        tips = await _geminiService.generateBudgetTips(
+        tips = await geminiService.generateBudgetTips(
           expenses: expenses,
           budgets: budgets,
           monthlyIncome: income,
         );
       }
 
-      setState(() {
-        _healthScore = score;
-        _aiTips = tips.isNotEmpty ? tips : null;
-        _isLoadingTips = false;
-      });
+      if (mounted) {
+        setState(() {
+          _healthScore = score;
+          _aiTips = tips.isNotEmpty ? tips : null;
+          _isLoadingTips = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingTips = false);
+      if (mounted) {
+        setState(() => _isLoadingTips = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
     final financialManager = Provider.of<FinancialDataManager>(context);
-    final healthProvider = Provider.of<HealthProvider>(context);
-    final taskProvider = Provider.of<TaskProvider>(context);
-    final savingsProvider = Provider.of<SavingsGoalProvider>(context);
     final reminderProvider = Provider.of<ReminderProvider>(context);
-    final shoppingProvider = Provider.of<ShoppingListProvider>(context);
-    final eventProvider = Provider.of<FamilyEventProvider>(context);
+    final savingsProvider = Provider.of<SavingsGoalProvider>(context);
 
-    final totalExpenses = financialManager.getTotalExpenses();
-    final totalIncome = financialManager.getMonthlyIncome();
-    final recentExpenses = financialManager.getRecentExpenses(limit: 5);
-    final upcomingVisits = healthProvider.getUpcomingVisits();
-    final todayTasks = taskProvider.getTodayTasks();
-    final overdueTasks = taskProvider.getOverdueTasks();
-    final overBudgets = financialManager.getOverBudgets();
-    final upcomingReminders = reminderProvider.getDueSoonReminders();
-    final shoppingItems = shoppingProvider.activeItems;
-    final upcomingEvents = eventProvider.getUpcomingEvents();
-    final activeBudgets = financialManager.getActiveBudgets();
-    final dailySpending = financialManager.getDailySpending();
+    // Dynamic Theme Colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardColor;
+    const accentBlue = Color(0xFF2E65F3);
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // App Bar
-            SliverAppBar(
-              expandedHeight: 100,
-              floating: true,
-              snap: true,
-              pinned: false,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              flexibleSpace: FlexibleSpaceBar(
-                centerTitle: false,
-                title: Text(
-                  'LifeSync',
-                  style: Theme.of(context).textTheme.titleLarge,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _loadAIInsights();
+            await reminderProvider.initialize();
+            await savingsProvider.initialize();
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                // 1. Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: cardColor,
+                          child: Text(
+                            (user != null && user.name.isNotEmpty)
+                                ? user.name.substring(0, 1).toUpperCase()
+                                : 'U',
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Good morning!',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: textSecondary,
+                              ),
+                            ),
+                            Text(
+                              user?.name ?? 'User',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HistoryScreen(),
+                              ),
+                            );
+                          },
+                          icon: Icon(Icons.search, color: textPrimary),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const NotificationHistoryScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.notifications_none,
+                              color: textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-              ),
-            ),
 
-            // Content
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: Text(
-                      DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now()),
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 14,
+                const SizedBox(height: 30),
+
+                // 2. Total Balance
+                Text(
+                  'Total Balance',
+                  style: GoogleFonts.inter(fontSize: 14, color: textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      '₹${financialManager.getMonthlyAvailableBalance().toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Financial Health Card (Moved to Top)
-                  const FinancialHealthCard(),
-
-                  // AI-Powered Budget Gauge
-                  if (_aiEnabled && activeBudgets.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: BudgetGaugeChart(
-                        budgets: activeBudgets,
-                        totalSpent: totalExpenses,
-                        totalBudget: activeBudgets.fold<double>(
-                          0,
-                          (sum, b) => sum + b.allocatedAmount,
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A2F),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '+₹${financialManager.getMonthlyIncome().toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF4CAF50),
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                  ],
+                ),
 
-                  // Financial Health Score
-                  if (_aiEnabled && _healthScore != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: FinancialHealthScore(
-                        score: _healthScore!['score'] as int,
-                        rating: _healthScore!['rating'] as String,
-                        message: _healthScore!['message'] as String,
-                      ),
-                    ),
+                const SizedBox(height: 24),
 
-                  // AI Tips Card
-                  if (_aiEnabled)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: AITipsCard(
-                        tip: _aiTips,
-                        isLoading: _isLoadingTips,
-                        onRefresh: _loadAIInsights,
-                        title: '💡 AI Budget Tips',
-                      ),
-                    ),
-
-                  // Spending Trends Chart (New Feature)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: SpendingTrendsChart(dailySpending: dailySpending),
-                  ),
-
-                  // Analytics Dashboard Card
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AnalyticsScreen(),
+                // 3. Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (_) => const AddIncomeDialog(),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cardColor,
+                          foregroundColor: textPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
-                        );
+                          elevation: 0,
+                        ),
+                        child: const Text('+ Deposit'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (_) => const AddExpenseDialog(),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(
+                          Icons.swap_horiz,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                        label: const Text('Transfer'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    InkWell(
+                      onTap: () {
+                        _showAllServicesSheet(context);
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.analytics_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Analytics Dashboard',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'View trends & predictions',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.8,
-                                      ),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(
-                              Icons.arrow_forward_ios,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ],
+                        child: Icon(
+                          Icons.grid_view,
+                          color: textPrimary,
+                          size: 20,
                         ),
                       ),
                     ),
-                  ),
+                  ],
+                ),
 
-                  Padding(
+                const SizedBox(height: 24),
+
+                // 3.5 AI Insight (if available)
+                if (_healthScore != null || _aiTips != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
                     padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          accentBlue.withValues(alpha: 0.2),
+                          isDark ? Colors.black26 : Colors.white10,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: accentBlue.withValues(alpha: 0.3),
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Quick Stats Overview
                         Row(
                           children: [
-                            Expanded(
-                              child: StatCard(
-                                title: 'Available',
-                                value:
-                                    '₹${financialManager.getMonthlyAvailableBalance().toStringAsFixed(0)}',
-                                subtitle: 'Balance',
-                                icon: FontAwesomeIcons.wallet,
-                                gradient: AppTheme.accentGradient,
-                              ),
+                            const Icon(
+                              Icons.auto_awesome,
+                              color: accentBlue,
+                              size: 20,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatCard(
-                                title: 'Income',
-                                value: '₹${totalIncome.toStringAsFixed(0)}',
-                                subtitle: 'This month',
-                                icon: FontAwesomeIcons.arrowTrendUp,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppTheme.successColor,
-                                    AppTheme.successColor.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'AI Insight',
+                              style: GoogleFonts.inter(
+                                color: accentBlue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: StatCard(
-                                title: 'Expenses',
-                                value: '₹${totalExpenses.toStringAsFixed(0)}',
-                                subtitle: 'This month',
-                                icon: FontAwesomeIcons.arrowTrendDown,
-                                gradient: AppTheme.primaryGradient,
-                              ),
+                        if (_healthScore != null)
+                          Text(
+                            'Your financial health score is ${_healthScore!['score']}/100.',
+                            style: GoogleFonts.inter(
+                              color: textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatCard(
-                                title: 'Tasks Today',
-                                value: '${todayTasks.length}',
-                                subtitle: 'Due today',
-                                icon: FontAwesomeIcons.checkDouble,
-                                gradient: AppTheme.accentGradient,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatCard(
-                                title: 'Shopping',
-                                value: '${shoppingItems.length}',
-                                subtitle: 'Items to buy',
-                                icon: FontAwesomeIcons.cartShopping,
-                                gradient: AppTheme.accentGradient,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Quick Actions
-                        _buildSectionHeader(
-                          context,
-                          'Quick Actions',
-                          FontAwesomeIcons.bolt,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildQuickActions(context),
-
-                        const SizedBox(height: 24),
-
-                        // Family Members (New Feature)
-                        _buildFamilyMembers(context),
-
-                        const SizedBox(height: 24),
-
-                        // Budget Alerts
-                        if (overBudgets.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Budget Alerts',
-                            FontAwesomeIcons.triangleExclamation,
                           ),
-                          const SizedBox(height: 12),
-                          ...overBudgets
-                              .take(3)
-                              .map(
-                                (budget) => _buildAlertCard(
-                                  context,
-                                  '${budget.category} Over Budget',
-                                  'Spent ₹${budget.spentAmount.toStringAsFixed(0)} of ₹${budget.allocatedAmount.toStringAsFixed(0)}',
-                                  FontAwesomeIcons.circleExclamation,
-                                  AppTheme.errorColor,
-                                ),
-                              ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Active Budgets Summary
-                        if (activeBudgets.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Budget Overview',
-                            FontAwesomeIcons.piggyBank,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildBudgetOverview(context, activeBudgets),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Upcoming Events
-                        if (upcomingEvents.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: _buildSectionHeader(
-                                  context,
-                                  'Upcoming Events',
-                                  FontAwesomeIcons.calendarDay,
-                                ),
-                              ),
-                              if (upcomingEvents.length > 2)
-                                TextButton(
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const FinancialCalendarScreen(),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        'See More',
-                                        style: TextStyle(
-                                          color: AppTheme.primaryColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 12,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ...upcomingEvents
-                              .take(2)
-                              .map(
-                                (event) => _buildAlertCard(
-                                  context,
-                                  event.title,
-                                  DateFormat(
-                                    'MMM d, yyyy',
-                                  ).format(event.startDate),
-                                  FontAwesomeIcons.calendar,
-                                  AppTheme.accentColor,
-                                ),
-                              ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Upcoming Reminders
-                        if (upcomingReminders.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: _buildSectionHeader(
-                                  context,
-                                  'Upcoming Bills & Reminders',
-                                  FontAwesomeIcons.bell,
-                                ),
-                              ),
-                              if (upcomingReminders.length > 2)
-                                TextButton(
-                                  onPressed: () => Navigator.pushNamed(
-                                    context,
-                                    '/reminders',
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        'See More',
-                                        style: TextStyle(
-                                          color: AppTheme.primaryColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 12,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ...upcomingReminders
-                              .take(2)
-                              .map(
-                                (reminder) => _buildAlertCard(
-                                  context,
-                                  reminder.title,
-                                  'Due: ${DateFormat('MMM d').format(reminder.dueDate)}${reminder.amount != null ? " • ₹${reminder.amount!.toStringAsFixed(0)}" : ""}',
-                                  FontAwesomeIcons.clockRotateLeft,
-                                  AppTheme.warningColor,
-                                ),
-                              ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Shopping List Preview
-                        if (shoppingItems.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Shopping List',
-                            FontAwesomeIcons.cartShopping,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildShoppingPreview(context, shoppingItems),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Savings Goals Progress
-                        _buildSectionHeader(
-                          context,
-                          'Savings Goals',
-                          FontAwesomeIcons.bullseye,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSavingsGoalsPreview(context, savingsProvider),
-
-                        const SizedBox(height: 24),
-
-                        // Other Alerts
-                        if (overdueTasks.isNotEmpty ||
-                            upcomingVisits.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            context,
-                            'Other Alerts',
-                            FontAwesomeIcons.bellConcierge,
-                          ),
-                          const SizedBox(height: 12),
-
-                          if (overdueTasks.isNotEmpty)
-                            _buildAlertCard(
-                              context,
-                              'Overdue Tasks',
-                              '${overdueTasks.length} task${overdueTasks.length > 1 ? 's' : ''} need attention',
-                              FontAwesomeIcons.triangleExclamation,
-                              AppTheme.warningColor,
+                        if (_aiTips != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _aiTips!,
+                            style: GoogleFonts.inter(
+                              color: textSecondary,
+                              fontSize: 14,
                             ),
-
-                          if (upcomingVisits.isNotEmpty)
-                            _buildAlertCard(
-                              context,
-                              'Upcoming Health Visit',
-                              upcomingVisits.first.description ??
-                                  'Doctor appointment',
-                              FontAwesomeIcons.heartPulse,
-                              AppTheme.healthColor,
-                            ),
-
-                          const SizedBox(height: 24),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
-
-                        // Recent Expenses
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: _buildSectionHeader(
-                                context,
-                                'Recent Expenses',
-                                FontAwesomeIcons.receipt,
-                              ),
-                            ),
-                            if (recentExpenses.length > 3)
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pushNamed(context, '/expenses'),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'See More',
-                                      style: TextStyle(
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 12,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        if (recentExpenses.isEmpty)
-                          _buildEmptyState(
-                            context,
-                            'No expenses yet',
-                            'Start tracking your family expenses',
-                          )
-                        else
-                          ...recentExpenses
-                              .take(3)
-                              .map(
-                                (expense) =>
-                                    RecentExpenseCard(expense: expense),
-                              ),
-
-                        const SizedBox(height: 24),
-
-                        // Today's Tasks
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: _buildSectionHeader(
-                                context,
-                                'Today\'s Tasks',
-                                FontAwesomeIcons.listCheck,
-                              ),
-                            ),
-                            if (todayTasks.length > 3)
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pushNamed(context, '/tasks'),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'See More',
-                                      style: TextStyle(
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 12,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        if (todayTasks.isEmpty)
-                          _buildEmptyState(
-                            context,
-                            'No tasks for today',
-                            'You\'re all caught up!',
-                          )
-                        else
-                          ...todayTasks
-                              .take(3)
-                              .map((task) => TaskItem(task: task)),
-
-                        const SizedBox(height: 100),
                       ],
                     ),
                   ),
+
+                // 4. My Goals (Horizontal List)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Goals',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddBudgetDialog(),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.add, color: textPrimary, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Add',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 180,
+                  child: savingsProvider.activeGoals.isEmpty
+                      ? _buildEmptyStateCard(
+                          context,
+                          'No active goals',
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SavingsGoalsScreen(),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: savingsProvider.activeGoals.length,
+                          itemBuilder: (context, index) {
+                            final goal = savingsProvider.activeGoals[index];
+                            return Container(
+                              width: 280,
+                              margin: const EdgeInsets.only(right: 16),
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: index % 2 == 0
+                                      ? [
+                                          const Color(0xFF2E65F3),
+                                          const Color(0xFF152A72),
+                                        ]
+                                      : [
+                                          const Color(0xFF7A2EF3),
+                                          const Color(0xFF2A0F5B),
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        goal.name,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.star,
+                                        color: Colors.white54,
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Saved',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '₹${goal.currentAmount.toStringAsFixed(2)}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Target: ₹${goal.targetAmount.toStringAsFixed(0)}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.white54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Progess',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.white54,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${((goal.currentAmount / goal.targetAmount) * 100).toStringAsFixed(1)}%',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // 5. Upcoming Payment (Reminder)
+                if (reminderProvider.getPendingReminders().isNotEmpty) ...[
+                  Text(
+                    'Upcoming Payment',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF2C2B3E)
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(Icons.receipt_long, color: textPrimary),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reminderProvider
+                                    .getPendingReminders()
+                                    .first
+                                    .title,
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Due ${DateFormat('MMM d').format(reminderProvider.getPendingReminders().first.dueDate)}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _showPayReminderDialog(
+                              context,
+                              reminderProvider.getPendingReminders().first,
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                          ),
+                          child: const Text('Pay Now'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
                 ],
+
+                // 6. Transactions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Transactions',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      ),
+                      child: Text(
+                        'See More',
+                        style: TextStyle(color: textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildRecentTransactionsList(financialManager, context),
+
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAllServicesSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'All Services',
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 24,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.75, // Fixed pixel issue
+                    children: [
+                      _buildServiceIcon(
+                        context,
+                        'Expenses',
+                        FontAwesomeIcons.receipt,
+                        Colors.red,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ExpensesScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Income',
+                        FontAwesomeIcons.moneyBillTrendUp,
+                        Colors.green,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const IncomeScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Budget',
+                        FontAwesomeIcons.piggyBank,
+                        Colors.blue,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const BudgetScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Savings',
+                        FontAwesomeIcons.bullseye,
+                        const Color(0xFFF39C12),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SavingsGoalsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Reports',
+                        FontAwesomeIcons.chartLine,
+                        const Color(0xFF9B59B6),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReportsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Calendar',
+                        FontAwesomeIcons.calendarDays,
+                        Colors.purple,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FinancialCalendarScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Health',
+                        FontAwesomeIcons.heartPulse,
+                        const Color(0xFFE74C3C),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HealthScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Tasks',
+                        FontAwesomeIcons.listCheck,
+                        const Color(0xFF34495E),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TasksScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Reminders',
+                        FontAwesomeIcons.bell,
+                        Colors.teal,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReminderScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Family',
+                        FontAwesomeIcons.users,
+                        Colors.indigo,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FamilyUserAccountsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Analytics',
+                        FontAwesomeIcons.chartPie,
+                        Colors.deepOrange,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AnalyticsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'History',
+                        FontAwesomeIcons.clockRotateLeft,
+                        Colors.brown,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HistoryScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildServiceIcon(
+                        context,
+                        'Settings',
+                        FontAwesomeIcons.gear,
+                        Colors.grey,
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showPayReminderDialog(BuildContext context, dynamic reminder) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Mark as Paid?',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+        ),
+        content: Text(
+          'Do you want to mark "${reminder.title}" as paid?',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Provider.of<ReminderProvider>(
+                context,
+                listen: false,
+              ).markAsPaid(reminder.id!);
+              Navigator.pop(context);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateCard(
+    BuildContext context,
+    String title,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_circle,
+              size: 40,
+              color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
           ],
@@ -693,413 +966,91 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _buildQuickActionButton(
-            context,
-            'Add Income',
-            FontAwesomeIcons.moneyBillTrendUp,
-            AppTheme.successColor,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const IncomeScreen()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Set Budget',
-            FontAwesomeIcons.piggyBank,
-            AppTheme.primaryColor,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const BudgetScreen()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Shopping',
-            FontAwesomeIcons.cartShopping,
-            AppTheme.warningColor,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ShoppingListScreen()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Reminders',
-            FontAwesomeIcons.bell,
-            AppTheme.accentColor,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ReminderScreen()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Reports',
-            FontAwesomeIcons.chartLine,
-            AppTheme.healthColor,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ReportsScreen()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Calendar',
-            FontAwesomeIcons.calendarDays,
-            Colors.purple,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const FinancialCalendarScreen(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildQuickActionButton(
-            context,
-            'Add Task',
-            FontAwesomeIcons.listCheck,
-            Colors.orange,
-            () => showDialog(
-              context: context,
-              builder: (_) => const AddTaskDialog(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton(
+  Widget _buildServiceIcon(
     BuildContext context,
     String label,
     IconData icon,
     Color color,
     VoidCallback onTap,
   ) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: FaIcon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentTransactionsList(
+    FinancialDataManager manager,
+    BuildContext context,
+  ) {
+    final transactions = manager.getRecentExpenses(limit: 5);
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+
+    if (transactions.isEmpty) {
+      return Center(
         child: Column(
           children: [
-            FaIcon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFamilyMembers(BuildContext context) {
-    return Consumer<FamilyProvider>(
-      builder: (context, provider, child) {
-        if (provider.members.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(
-              context,
-              'Family Members',
-              FontAwesomeIcons.peopleGroup,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 100,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: provider.members.length,
-                itemBuilder: (context, index) {
-                  final member = provider.members[index];
-                  return Container(
-                    margin: const EdgeInsets.only(right: 16),
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: member.avatarColor != null
-                              ? Color(int.parse(member.avatarColor!))
-                              : AppTheme.primaryColor.withValues(alpha: 0.2),
-                          child: Text(
-                            member.name[0].toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: member.avatarColor != null
-                                  ? Colors.white
-                                  : AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          member.name,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildBudgetOverview(BuildContext context, List budgets) {
-    final onTrack = budgets.where((b) => !b.isOverBudget).length;
-    final overBudget = budgets.where((b) => b.isOverBudget).length;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.1),
-            AppTheme.accentColor.withValues(alpha: 0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildBudgetStat(
-            context,
-            '$onTrack',
-            'On Track',
-            AppTheme.successColor,
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Theme.of(context).dividerColor,
-          ),
-          _buildBudgetStat(
-            context,
-            '$overBudget',
-            'Over Budget',
-            AppTheme.errorColor,
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Theme.of(context).dividerColor,
-          ),
-          _buildBudgetStat(
-            context,
-            '${budgets.length}',
-            'Total',
-            AppTheme.primaryColor,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBudgetStat(
-    BuildContext context,
-    String value,
-    String label,
-    Color color,
-  ) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildShoppingPreview(BuildContext context, List items) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              FaIcon(
-                FontAwesomeIcons.cartShopping,
-                color: AppTheme.warningColor,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${items.length} items to buy',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              IconButton(
-                icon: const FaIcon(FontAwesomeIcons.arrowRight, size: 16),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ShoppingListScreen()),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...items
-              .take(3)
-              .map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.circle,
-                        size: 8,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item.name,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      if (item.estimatedPrice != null)
-                        Text(
-                          '₹${item.estimatedPrice!.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                ),
+                ],
               ),
-          if (items.length > 3)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                '+ ${items.length - 3} more items',
-                style: TextStyle(
-                  color: AppTheme.primaryColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: FaIcon(
+                FontAwesomeIcons.receipt,
+                size: 24,
+                color: textSecondary.withValues(alpha: 0.3),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(
-    BuildContext context,
-    String title,
-    IconData icon,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: FaIcon(
-            icon,
-            size: 16,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-      ],
-    );
-  }
-
-  Widget _buildSavingsGoalsPreview(
-    BuildContext context,
-    SavingsGoalProvider provider,
-  ) {
-    final goals = provider.goals.where((g) => !g.isCompleted).take(2).toList();
-
-    if (goals.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-        child: Row(
-          children: [
-            FaIcon(
-              FontAwesomeIcons.bullseye,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              size: 24,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'No active savings goals',
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                ),
+            const SizedBox(height: 16),
+            Text(
+              'No recent transactions',
+              style: GoogleFonts.inter(
+                color: textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SavingsGoalsScreen()),
-              ),
-              child: const Text('Add Goal'),
             ),
           ],
         ),
@@ -1107,148 +1058,78 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Column(
-      children: goals.map((goal) {
+      children: transactions.map((txn) {
+        final color = AppTheme.getCategoryColor(txn.category);
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.successColor.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(goal.emoji, style: const TextStyle(fontSize: 24)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      goal.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  Text(
-                    '${goal.percentageCompleted.toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      color: AppTheme.successColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: goal.percentageCompleted / 100,
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppTheme.successColor,
-                  ),
-                  minHeight: 6,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: FaIcon(
+                  AppTheme.getCategoryIcon(txn.category),
+                  size: 18,
+                  color: color,
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '₹${goal.currentAmount.toStringAsFixed(0)} / ₹${goal.targetAmount.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontSize: 12,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      txn.description.isNotEmpty
+                          ? txn.description
+                          : txn.category,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    '${goal.daysRemaining} days left',
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontSize: 12,
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('MMM d, h:mm a').format(txn.date),
+                      style: GoogleFonts.inter(
+                        color: textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '-₹${NumberFormat('#,##,##0').format(txn.amount)}',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: textPrimary,
+                ),
               ),
             ],
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildAlertCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: FaIcon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: color),
-                ),
-                const SizedBox(height: 4),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 48,
-            color: Theme.of(context).textTheme.bodySmall?.color,
-          ),
-          const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }

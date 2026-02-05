@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_theme.dart';
 
 class SpendingTrendsChart extends StatelessWidget {
@@ -19,20 +20,22 @@ class SpendingTrendsChart extends StatelessWidget {
       return Center(
         child: Text(
           'No spending data available',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: GoogleFonts.inter(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
         ),
       );
     }
 
     return Container(
-      height: isCompact ? 200 : 300,
-      padding: const EdgeInsets.all(16),
+      height: isCompact ? 200 : 320,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -44,7 +47,11 @@ class SpendingTrendsChart extends StatelessWidget {
           if (!isCompact) ...[
             Text(
               'Spending Trends',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
             const SizedBox(height: 24),
           ],
@@ -56,7 +63,13 @@ class SpendingTrendsChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: 1000,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(color: AppTheme.borderColor, strokeWidth: 1);
+                    return FlLine(
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.5),
+                      strokeWidth: 1,
+                      dashArray: [5, 5],
+                    );
                   },
                 ),
                 titlesData: FlTitlesData(
@@ -82,7 +95,12 @@ class SpendingTrendsChart extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               DateFormat('MMM d').format(date),
-                              style: Theme.of(context).textTheme.bodySmall,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                              ),
                             ),
                           );
                         }
@@ -93,11 +111,14 @@ class SpendingTrendsChart extends StatelessWidget {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: !isCompact,
-                      interval: 1000,
+                      interval: 1000, // Dynamic logic could improve this
                       getTitlesWidget: (value, meta) {
                         return Text(
                           '₹${value.toInt()}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
                         );
                       },
                       reservedSize: 42,
@@ -117,6 +138,7 @@ class SpendingTrendsChart extends StatelessWidget {
                       );
                     }),
                     isCurved: true,
+                    curveSmoothness: 0.35,
                     color: AppTheme.primaryColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
@@ -125,8 +147,8 @@ class SpendingTrendsChart extends StatelessWidget {
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          AppTheme.primaryColor.withOpacity(0.3),
-                          AppTheme.primaryColor.withOpacity(0.0),
+                          AppTheme.primaryColor.withValues(alpha: 0.3),
+                          AppTheme.primaryColor.withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -136,11 +158,11 @@ class SpendingTrendsChart extends StatelessWidget {
                 ],
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
-                    tooltipBgColor: AppTheme.cardColor,
-                    tooltipRoundedRadius: 8,
-                    tooltipPadding: const EdgeInsets.all(8),
+                    tooltipBgColor: Theme.of(context).cardColor,
+                    tooltipRoundedRadius: 12,
+                    tooltipPadding: const EdgeInsets.all(12),
                     tooltipBorder: BorderSide(
-                      color: AppTheme.borderColor,
+                      color: Theme.of(context).dividerColor,
                       width: 1,
                     ),
                     getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
@@ -149,14 +171,15 @@ class SpendingTrendsChart extends StatelessWidget {
                         final date = dailySpending[index]['date'] as DateTime;
                         return LineTooltipItem(
                           '${DateFormat('MMM d').format(date)}\n',
-                          const TextStyle(
-                            color: AppTheme.textSecondary,
+                          GoogleFonts.inter(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                             fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
                           children: [
                             TextSpan(
                               text: '₹${barSpot.y.toStringAsFixed(0)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 color: AppTheme.primaryColor,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -167,6 +190,7 @@ class SpendingTrendsChart extends StatelessWidget {
                       }).toList();
                     },
                   ),
+                  handleBuiltInTouches: true,
                 ),
               ),
             ),

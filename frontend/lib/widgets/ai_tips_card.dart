@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 import '../utils/app_theme.dart';
 
 class AITipsCard extends StatefulWidget {
@@ -26,21 +27,17 @@ class _AITipsCardState extends State<AITipsCard> {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.accentColor.withOpacity(0.15),
-            AppTheme.primaryColor.withOpacity(0.15),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentColor.withOpacity(0.3),
-          width: 1,
-        ),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,10 +49,10 @@ class _AITipsCardState extends State<AITipsCard> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   gradient: AppTheme.accentGradient,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.accentColor.withOpacity(0.3),
+                      color: AppTheme.accentColor.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -64,15 +61,17 @@ class _AITipsCardState extends State<AITipsCard> {
                 child: const FaIcon(
                   FontAwesomeIcons.wandMagicSparkles,
                   color: Colors.white,
-                  size: 20,
+                  size: 18,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -81,8 +80,8 @@ class _AITipsCardState extends State<AITipsCard> {
                   onPressed: widget.isLoading ? null : widget.onRefresh,
                   icon: widget.isLoading
                       ? SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
@@ -97,7 +96,7 @@ class _AITipsCardState extends State<AITipsCard> {
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // Content
           if (widget.isLoading)
@@ -131,7 +130,7 @@ class _AITipsCardState extends State<AITipsCard> {
             children: [
               if (isNumbered)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8, top: 2),
+                  padding: const EdgeInsets.only(right: 10, top: 6),
                   child: Container(
                     width: 6,
                     height: 6,
@@ -144,9 +143,11 @@ class _AITipsCardState extends State<AITipsCard> {
               Expanded(
                 child: Text(
                   line.replaceAll(RegExp(r'^\d+\.|^-|^•'), '').trim(),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(height: 1.5, fontSize: 14),
+                  style: GoogleFonts.inter(
+                    height: 1.6,
+                    fontSize: 14,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                 ),
               ),
             ],
@@ -158,8 +159,8 @@ class _AITipsCardState extends State<AITipsCard> {
 
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
-      baseColor: AppTheme.surfaceColor,
-      highlightColor: AppTheme.cardColor,
+      baseColor: Theme.of(context).cardColor,
+      highlightColor: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -201,13 +202,16 @@ class _AITipsCardState extends State<AITipsCard> {
           FaIcon(
             FontAwesomeIcons.robot,
             size: 40,
-            color: AppTheme.textTertiary,
+            color: Theme.of(context).disabledColor,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             'Set up your Gemini API key in Settings\nto get personalized financial tips',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textTertiary, fontSize: 13),
+            style: GoogleFonts.inter(
+              color: Theme.of(context).disabledColor,
+              fontSize: 13,
+            ),
           ),
         ],
       ),

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../providers/financial_data_manager.dart';
 import '../services/gemini_service.dart';
+import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/expense.dart';
@@ -111,10 +113,154 @@ class _ReportsScreenState extends State<ReportsScreen>
     return categoryExpenses;
   }
 
+  // --- AI Report Logic ---
+  Future<void> _showAIReport(BuildContext context) async {
+    final manager = Provider.of<FinancialDataManager>(context, listen: false);
+
+    final geminiService = Provider.of<GeminiService>(context, listen: false);
+
+    // Check if AI enabled
+    if (!await geminiService.isAIEnabled()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enable AI features in Settings first'),
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Calculate report data
+      final now = DateTime.now();
+      final lastMonth = DateTime(now.year, now.month - 1);
+
+      final totalIncome = manager.getIncomeForMonth(now);
+      final totalExpenses = manager.getExpensesForMonth(now);
+      final lastTotalIncome = manager.getIncomeForMonth(lastMonth);
+      final lastTotalExpenses = manager.getExpensesForMonth(lastMonth);
+
+      final monthExpenses = manager.getExpensesByDateRange(
+        DateTime(now.year, now.month, 1),
+        DateTime(now.year, now.month + 1, 0),
+      );
+      final Map<String, double> categoryExpenses = {};
+      for (var e in monthExpenses) {
+        categoryExpenses[e.category] =
+            (categoryExpenses[e.category] ?? 0) + e.amount;
+      }
+
+      final report = await geminiService.generateReportInsights(
+        totalIncome: totalIncome,
+        totalExpenses: totalExpenses,
+        categoryExpenses: categoryExpenses,
+        lastMonthIncome: lastTotalIncome,
+        lastMonthExpenses: lastTotalExpenses,
+      );
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) => Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const FaIcon(
+                          FontAwesomeIcons.wandMagicSparkles,
+                          color: AppTheme.primaryColor,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'AI Insights',
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Markdown(
+                    data: report,
+                    styleSheet: MarkdownStyleSheet(
+                      p: GoogleFonts.inter(fontSize: 14, height: 1.5),
+                      h1: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                      h2: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      listBullet: GoogleFonts.inter(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to generate report: $e')));
+    }
+  }
+
+  void _exportReport(BuildContext context) {
+    // Placeholder for export functionality
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Exporting Report...')));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(
+      context,
+    ); // Listen to theme changes if needed
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDark
+          ? AppTheme.backgroundColor
+          : const Color(0xFFF7F9FC),
       body: Consumer<FinancialDataManager>(
         builder: (context, financialManager, child) {
           final dateRange = _getDateRange();
@@ -138,7 +284,12 @@ class _ReportsScreenState extends State<ReportsScreen>
           final categoryExpenses = _getCategoryExpenses(filteredExpenses);
 
           if (totalIncome == 0 && totalExpenses == 0) {
-            return _buildEmptyState(context);
+            return CustomScrollView(
+              slivers: [
+                _buildAnimatedAppBar(context),
+                SliverFillRemaining(child: _buildEmptyState(context)),
+              ],
+            );
           }
 
           return CustomScrollView(
@@ -148,7 +299,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 24,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -158,6 +312,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                         const SizedBox(height: 24),
                         _buildFinancialHealthScore(financialManager),
                         const SizedBox(height: 24),
+                        _buildSectionHeader('Income vs Expenses'),
+                        const SizedBox(height: 16),
                         _buildIncomeExpenseChart(totalIncome, totalExpenses),
                         const SizedBox(height: 24),
                         if (categoryExpenses.isNotEmpty) ...[
@@ -180,18 +336,6 @@ class _ReportsScreenState extends State<ReportsScreen>
                         _buildSectionHeader('Daily Spending Trend'),
                         const SizedBox(height: 16),
                         _buildDailySpendingChart(financialManager),
-                        const SizedBox(height: 24),
-                        _buildSectionHeader('Monthly Comparison'),
-                        const SizedBox(height: 16),
-                        _buildMonthlyComparison(financialManager),
-                        const SizedBox(height: 24),
-                        _buildSectionHeader('6-Month Trend'),
-                        const SizedBox(height: 16),
-                        _buildSixMonthTrend(financialManager),
-                        const SizedBox(height: 24),
-                        _buildSectionHeader('Yearly Overview'),
-                        const SizedBox(height: 16),
-                        _buildYearlyOverview(financialManager),
                         const SizedBox(height: 100),
                       ],
                     ),
@@ -202,7 +346,6 @@ class _ReportsScreenState extends State<ReportsScreen>
           );
         },
       ),
-      floatingActionButton: _buildFloatingActions(context),
     );
   }
 
@@ -214,19 +357,21 @@ class _ReportsScreenState extends State<ReportsScreen>
           FaIcon(
             FontAwesomeIcons.chartPie,
             size: 80,
-            color: AppTheme.textSecondary.withValues(alpha: 0.3),
+            color: Colors.grey.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 24),
           Text(
             'No financial data yet',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Start adding income and expenses to see reports',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: GoogleFonts.inter(color: Colors.grey),
           ),
         ],
       ),
@@ -240,10 +385,15 @@ class _ReportsScreenState extends State<ReportsScreen>
       pinned: true,
       backgroundColor: AppTheme.primaryColor,
       flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
+        title: Text(
           'Financial Reports',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 18,
+          ),
         ),
+        centerTitle: false,
         background: Container(
           decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
         ),
@@ -253,12 +403,13 @@ class _ReportsScreenState extends State<ReportsScreen>
           icon: const FaIcon(
             FontAwesomeIcons.wandMagicSparkles,
             color: Colors.white,
+            size: 20,
           ),
           tooltip: 'AI Analysis',
           onPressed: () => _showAIReport(context),
         ),
         IconButton(
-          icon: const Icon(Icons.file_download, color: Colors.white),
+          icon: const Icon(Icons.download_rounded, color: Colors.white),
           tooltip: 'Export Report',
           onPressed: () => _exportReport(context),
         ),
@@ -274,22 +425,23 @@ class _ReportsScreenState extends State<ReportsScreen>
           final isSelected = _selectedPeriod == period;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
+            child: ChoiceChip(
               selected: isSelected,
               label: Text(_getPeriodLabel(period)),
               onSelected: (selected) {
-                setState(() {
-                  _selectedPeriod = period;
-                });
+                if (selected) setState(() => _selectedPeriod = period);
               },
-              backgroundColor: Theme.of(context).cardColor,
               selectedColor: AppTheme.primaryColor,
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).textTheme.bodyMedium?.color,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              backgroundColor: Theme.of(context).cardColor,
+              labelStyle: GoogleFonts.inter(
+                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide.none,
+              ),
+              elevation: isSelected ? 4 : 0,
             ),
           );
         }).toList(),
@@ -316,69 +468,81 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildSummaryCards(double totalIncome, double totalExpenses) {
     final balance = totalIncome - totalExpenses;
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Income',
-            totalIncome,
-            Icons.trending_up,
-            AppTheme.successColor,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Expenses',
-            totalExpenses,
-            Icons.trending_down,
-            AppTheme.errorColor,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Balance',
-            balance,
-            Icons.account_balance_wallet,
-            balance >= 0 ? AppTheme.successColor : AppTheme.errorColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String label,
-    double amount,
-    IconData icon,
-    Color color,
-  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppTheme.cardShadow],
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 4),
-          FittedBox(
-            child: Text(
-              '₹${amount.abs().toStringAsFixed(0)}',
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          _buildStatItem(
+            'Income',
+            totalIncome,
+            AppTheme.successColor,
+            Icons.trending_up,
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Colors.grey.withValues(alpha: 0.2),
+          ),
+          _buildStatItem(
+            'Expenses',
+            totalExpenses,
+            AppTheme.errorColor,
+            Icons.trending_down,
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Colors.grey.withValues(alpha: 0.2),
+          ),
+          _buildStatItem(
+            'Balance',
+            balance,
+            balance >= 0 ? AppTheme.primaryColor : AppTheme.errorColor,
+            Icons.account_balance_wallet,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatItem(
+    String label,
+    double amount,
+    Color color,
+    IconData icon,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '₹${amount.abs().toInt()}',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
@@ -391,38 +555,44 @@ class _ReportsScreenState extends State<ReportsScreen>
         : AppTheme.errorColor;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            scoreColor.withValues(alpha: 0.2),
+            scoreColor.withValues(alpha: 0.15),
             scoreColor.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scoreColor.withValues(alpha: 0.5), width: 2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scoreColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: scoreColor.withValues(alpha: 0.2),
-            ),
-            child: Center(
-              child: Text(
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: CircularProgressIndicator(
+                  value: score / 100,
+                  strokeWidth: 8,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation(scoreColor),
+                  strokeCap: StrokeCap.round,
+                ),
+              ),
+              Text(
                 '${score.toInt()}',
-                style: TextStyle(
-                  fontSize: 32,
+                style: GoogleFonts.inter(
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: scoreColor,
                 ),
               ),
-            ),
+            ],
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -430,22 +600,23 @@ class _ReportsScreenState extends State<ReportsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Financial Health Score',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  'Financial Health',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _getHealthMessage(score),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: score / 100,
-                    backgroundColor: Colors.white.withValues(alpha: 0.3),
-                    color: scoreColor,
-                    minHeight: 8,
+                  score >= 70
+                      ? 'Excellent work! Keep maintaining your habits.'
+                      : score >= 40
+                      ? 'Good, but there\'s room for improvement.'
+                      : 'Needs attention. Check your spending.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -456,26 +627,34 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  String _getHealthMessage(double score) {
-    if (score >= 70) return 'Excellent! Keep it up!';
-    if (score >= 40) return 'Good, but room for improvement';
-    return 'Needs attention';
-  }
-
   Widget _buildIncomeExpenseChart(double totalIncome, double totalExpenses) {
     return Container(
-      height: 200,
-      padding: const EdgeInsets.all(20),
+      height: 220,
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppTheme.cardShadow],
       ),
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
           maxY:
-              (totalIncome > totalExpenses ? totalIncome : totalExpenses) * 1.2,
-          barTouchData: BarTouchData(enabled: false),
+              (totalIncome > totalExpenses ? totalIncome : totalExpenses) * 1.1,
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              tooltipBgColor: Theme.of(context).cardColor,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${rod.toY.toInt()}',
+                  GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    color: rod.color,
+                  ),
+                );
+              },
+            ),
+          ),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
@@ -486,7 +665,11 @@ class _ReportsScreenState extends State<ReportsScreen>
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       value == 0 ? 'Income' : 'Expenses',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   );
                 },
@@ -511,10 +694,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                 BarChartRodData(
                   toY: totalIncome,
                   color: AppTheme.successColor,
-                  width: 40,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(8),
-                  ),
+                  width: 32,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ],
             ),
@@ -524,10 +705,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                 BarChartRodData(
                   toY: totalExpenses,
                   color: AppTheme.errorColor,
-                  width: 40,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(8),
-                  ),
+                  width: 32,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ],
             ),
@@ -537,34 +716,12 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
   Widget _buildCategoryPieChart(
     Map<String, double> categoryExpenses,
     double totalExpenses,
   ) {
     return SizedBox(
-      height: 250,
+      height: 220,
       child: PieChart(
         PieChartData(
           pieTouchData: PieTouchData(
@@ -582,8 +739,8 @@ class _ReportsScreenState extends State<ReportsScreen>
             },
           ),
           borderData: FlBorderData(show: false),
-          sectionsSpace: 2,
-          centerSpaceRadius: 50,
+          sectionsSpace: 4,
+          centerSpaceRadius: 40,
           sections: _showingSections(categoryExpenses, totalExpenses),
         ),
       ),
@@ -597,8 +754,10 @@ class _ReportsScreenState extends State<ReportsScreen>
     int i = 0;
     return data.entries.map((entry) {
       final isTouched = i == _touchedIndex;
-      final fontSize = isTouched ? 18.0 : 12.0;
-      final radius = isTouched ? 120.0 : 100.0;
+      final fontSize = isTouched
+          ? 16.0
+          : 0.0; // Hide labels on pie, show in legend/tooltip if needed or interactive
+      final radius = isTouched ? 100.0 : 80.0;
       final percentage = (entry.value / total * 100);
       final color = AppTheme.getCategoryColor(entry.key);
       i++;
@@ -606,13 +765,27 @@ class _ReportsScreenState extends State<ReportsScreen>
       return PieChartSectionData(
         color: color,
         value: entry.value,
-        title: isTouched ? '${percentage.toStringAsFixed(1)}%' : '',
+        title: '${percentage.toStringAsFixed(0)}%',
         radius: radius,
-        titleStyle: TextStyle(
+        titleStyle: GoogleFonts.inter(
           fontSize: fontSize,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
+        badgeWidget: isTouched
+            ? Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  entry.key,
+                  style: GoogleFonts.inter(fontSize: 10, color: Colors.black),
+                ),
+              )
+            : null,
+        badgePositionPercentageOffset: 1.2,
       );
     }).toList();
   }
@@ -626,35 +799,32 @@ class _ReportsScreenState extends State<ReportsScreen>
         final color = AppTheme.getCategoryColor(entry.key);
         final percentage = (entry.value / totalExpenses * 100);
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
               Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   entry.key,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w500),
                 ),
               ),
               Text(
                 '${percentage.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
+                  color: AppTheme.textSecondary,
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 '₹${entry.value.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -687,18 +857,18 @@ class _ReportsScreenState extends State<ReportsScreen>
                       Icon(
                         AppTheme.getCategoryIcon(entry.key),
                         color: color,
-                        size: 20,
+                        size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         entry.key,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                   Text(
                     '₹${entry.value.toStringAsFixed(0)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -707,7 +877,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
                   value: percentage,
-                  backgroundColor: color.withValues(alpha: 0.2),
+                  backgroundColor: color.withValues(alpha: 0.1),
                   color: color,
                   minHeight: 8,
                 ),
@@ -721,55 +891,24 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildDailySpendingChart(FinancialDataManager manager) {
     final dailyData = manager.getDailySpending(days: 30);
-
     return Container(
-      height: 250,
-      padding: const EdgeInsets.all(16),
+      height: 220,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppTheme.cardShadow],
       ),
       child: LineChart(
         LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: 1000,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(color: AppTheme.borderColor, strokeWidth: 1);
-            },
-          ),
-          titlesData: FlTitlesData(
-            show: true,
+          gridData: const FlGridData(show: false),
+          titlesData: const FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 5,
-                getTitlesWidget: (value, meta) {
-                  final index = value.toInt();
-                  if (index >= 0 && index < dailyData.length) {
-                    final date = dailyData[index]['date'] as DateTime;
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        DateFormat('d').format(date),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    );
-                  }
-                  return const Text('');
-                },
-              ),
-            ),
-            leftTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            ), // Cleaner look without dates for sparkline effect
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -789,7 +928,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 show: true,
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.3),
+                    AppTheme.primaryColor.withValues(alpha: 0.2),
                     AppTheme.primaryColor.withValues(alpha: 0.0),
                   ],
                   begin: Alignment.topCenter,
@@ -803,442 +942,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildMonthlyComparison(FinancialDataManager manager) {
-    final now = DateTime.now();
-    final thisMonth = DateTime(now.year, now.month, 1);
-    final lastMonth = DateTime(now.year, now.month - 1, 1);
-
-    final thisMonthExpense = manager.getExpensesForMonth(thisMonth);
-    final lastMonthExpense = manager.getExpensesForMonth(lastMonth);
-    final diff = thisMonthExpense - lastMonthExpense;
-    final percent = lastMonthExpense == 0
-        ? 0.0
-        : (diff / lastMonthExpense * 100);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMonthColumn(
-                'Last Month',
-                lastMonthExpense,
-                AppTheme.textSecondary,
-              ),
-              Container(width: 1, height: 50, color: AppTheme.borderColor),
-              _buildMonthColumn(
-                'This Month',
-                thisMonthExpense,
-                AppTheme.primaryColor,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                diff > 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                color: diff > 0 ? AppTheme.errorColor : AppTheme.successColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${percent.abs().toStringAsFixed(1)}% ${diff > 0 ? 'increase' : 'decrease'}',
-                style: TextStyle(
-                  color: diff > 0 ? AppTheme.errorColor : AppTheme.successColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMonthColumn(String label, double amount, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
-          Text(
-            '₹${amount.toStringAsFixed(0)}',
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSixMonthTrend(FinancialDataManager manager) {
-    final now = DateTime.now();
-    List<FlSpot> incomeSpots = [];
-    List<FlSpot> expenseSpots = [];
-
-    for (int i = 5; i >= 0; i--) {
-      final month = DateTime(now.year, now.month - i, 1);
-      final income = manager.getIncomeForMonth(month);
-      final expense = manager.getExpensesForMonth(month);
-
-      incomeSpots.add(FlSpot((5 - i).toDouble(), income));
-      expenseSpots.add(FlSpot((5 - i).toDouble(), expense));
-    }
-
-    return Container(
-      height: 250,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: const FlGridData(show: false),
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final date = DateTime.now().subtract(
-                    Duration(days: 30 * (5 - value.toInt())),
-                  );
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      DateFormat('MMM').format(date),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  );
-                },
-                interval: 1,
-              ),
-            ),
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: incomeSpots,
-              isCurved: true,
-              color: AppTheme.successColor,
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(
-                show: true,
-                color: AppTheme.successColor.withValues(alpha: 0.1),
-              ),
-            ),
-            LineChartBarData(
-              spots: expenseSpots,
-              isCurved: true,
-              color: AppTheme.errorColor,
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(
-                show: true,
-                color: AppTheme.errorColor.withValues(alpha: 0.1),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildYearlyOverview(FinancialDataManager manager) {
-    final now = DateTime.now();
-    final yearIncome = manager.getIncomeForYear(now.year);
-    final yearExpense = manager.getExpensesForYear(now.year);
-    final yearBalance = yearIncome - yearExpense;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.2),
-            AppTheme.accentColor.withValues(alpha: 0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.primaryColor.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            '${now.year} Overview',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildYearStat('Income', yearIncome, AppTheme.successColor),
-              Container(width: 1, height: 60, color: AppTheme.borderColor),
-              _buildYearStat('Expenses', yearExpense, AppTheme.errorColor),
-              Container(width: 1, height: 60, color: AppTheme.borderColor),
-              _buildYearStat(
-                'Balance',
-                yearBalance,
-                yearBalance >= 0 ? AppTheme.successColor : AppTheme.errorColor,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildYearStat(String label, double amount, Color color) {
-    return Column(
-      children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 8),
-        Text(
-          '₹${(amount / 1000).toStringAsFixed(1)}K',
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFloatingActions(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FloatingActionButton(
-          heroTag: 'ai_report',
-          onPressed: () => _showAIReport(context),
-          backgroundColor: AppTheme.primaryColor,
-          child: const FaIcon(FontAwesomeIcons.wandMagicSparkles),
-        ),
-        const SizedBox(height: 12),
-        FloatingActionButton(
-          heroTag: 'export',
-          onPressed: () => _exportReport(context),
-          backgroundColor: AppTheme.accentColor,
-          child: const Icon(Icons.file_download),
-        ),
-      ],
-    );
-  }
-
-  void _exportReport(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export feature coming soon!'),
-        backgroundColor: AppTheme.infoColor,
-      ),
-    );
-  }
-
-  void _showAIReport(BuildContext context) async {
-    final geminiService = Provider.of<GeminiService>(context, listen: false);
-    final financialManager = Provider.of<FinancialDataManager>(
-      context,
-      listen: false,
-    );
-
-    final aiStatus = await geminiService.getAIStatus();
-    if (!aiStatus['ready']) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'AI features are not enabled. Please check settings.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (context.mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    try {
-      final now = DateTime.now();
-      final thisMonthStart = DateTime(now.year, now.month, 1);
-      final thisMonthEnd = DateTime(now.year, now.month + 1, 0);
-      final lastMonthStart = DateTime(now.year, now.month - 1, 1);
-      final lastMonthEnd = DateTime(now.year, now.month, 0);
-
-      final totalIncome = financialManager.getIncomeByPeriod(
-        thisMonthStart,
-        thisMonthEnd,
-      );
-
-      final totalExpenses = financialManager
-          .getExpensesByDateRange(thisMonthStart, thisMonthEnd)
-          .fold(0.0, (sum, e) => sum + e.amount);
-
-      final lastMonthIncome = financialManager.getIncomeByPeriod(
-        lastMonthStart,
-        lastMonthEnd,
-      );
-
-      final lastMonthExpenses = financialManager
-          .getExpensesByDateRange(lastMonthStart, lastMonthEnd)
-          .fold(0.0, (sum, e) => sum + e.amount);
-
-      final thisMonthExpensesList = financialManager.getExpensesByDateRange(
-        thisMonthStart,
-        thisMonthEnd,
-      );
-
-      Map<String, double> categoryExpenses = {};
-      for (var expense in thisMonthExpensesList) {
-        categoryExpenses[expense.category] =
-            (categoryExpenses[expense.category] ?? 0) + expense.amount;
-      }
-
-      final report = await geminiService.generateReportInsights(
-        totalIncome: totalIncome,
-        totalExpenses: totalExpenses,
-        categoryExpenses: categoryExpenses,
-        lastMonthIncome: lastMonthIncome,
-        lastMonthExpenses: lastMonthExpenses,
-      );
-
-      if (context.mounted) {
-        Navigator.pop(context);
-        _showReportDialog(context, report);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate report: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showReportDialog(BuildContext context, String report) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const FaIcon(
-                    FontAwesomeIcons.wandMagicSparkles,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'AI Financial Report',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: MarkdownBody(
-                  data: report,
-                  styleSheet: MarkdownStyleSheet(
-                    h1: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    h2: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                    h3: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    p: const TextStyle(fontSize: 16, height: 1.5),
-                    listBullet: const TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Share feature coming soon!'),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.share),
-                  label: const Text('Share Report'),
-                ),
-              ),
-            ),
-          ],
-        ),
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).textTheme.bodyLarge?.color,
       ),
     );
   }

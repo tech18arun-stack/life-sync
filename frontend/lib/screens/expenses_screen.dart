@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
+
 import '../providers/financial_data_manager.dart';
 import '../models/expense.dart';
 import '../utils/app_theme.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 import '../widgets/add_expense_dialog.dart';
 
 class ExpensesScreen extends StatefulWidget {
@@ -23,6 +25,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   @override
   Widget build(BuildContext context) {
     final financialManager = Provider.of<FinancialDataManager>(context);
+
+    // Theme Helpers
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final accentBlue = const Color(0xFF2E65F3);
 
     // Get expenses based on selected period
     final now = DateTime.now();
@@ -58,11 +69,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       return matchesSearch && matchesCategory;
     }).toList();
 
-    final total = filteredExpenses.fold<double>(
-      0,
-      (sum, expense) => sum + expense.amount,
-    );
-
+    // Calculations
+    final total = filteredExpenses.fold<double>(0, (sum, e) => sum + e.amount);
     final categoryExpenses = <String, double>{};
     for (final expense in filteredExpenses) {
       categoryExpenses[expense.category] =
@@ -72,135 +80,256 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text('Expenses'),
+          backgroundColor: backgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textPrimary),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            'Expenses',
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+          ),
+          centerTitle: false,
           actions: [
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.chartPie),
+              icon: FaIcon(
+                FontAwesomeIcons.chartPie,
+                color: textPrimary,
+                size: 20,
+              ),
               tooltip: 'Charts',
               onPressed: () =>
                   _showChartsDialog(context, categoryExpenses, total),
             ),
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.fileExport),
+              icon: FaIcon(
+                FontAwesomeIcons.fileExport,
+                color: textPrimary,
+                size: 20,
+              ),
               tooltip: 'Export',
               onPressed: () => _showExportOptions(context),
             ),
           ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: FaIcon(FontAwesomeIcons.list, size: 20), text: 'List'),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.chartColumn, size: 20),
-                text: 'Categories',
-              ),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.clockRotateLeft, size: 20),
-                text: 'Recent',
-              ),
+          bottom: TabBar(
+            labelColor: accentBlue,
+            unselectedLabelColor: textSecondary,
+            indicatorColor: accentBlue,
+            indicatorWeight: 3,
+            labelStyle: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+            tabs: const [
+              Tab(text: 'List'),
+              Tab(text: 'Categories'),
+              Tab(text: 'Recent'),
             ],
           ),
         ),
         body: Column(
           children: [
-            // Search and filter bar
+            // Search and Summary Container
             Container(
-              padding: const EdgeInsets.all(16),
-              color: Theme.of(context).cardColor,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: backgroundColor, // Blend with bg
+              ),
               child: Column(
                 children: [
-                  // Search bar
+                  // Search Bar
                   TextField(
                     onChanged: (value) => setState(() => _searchQuery = value),
+                    style: GoogleFonts.inter(color: textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search expenses...',
-                      prefixIcon: const Icon(Icons.search),
+                      hintStyle: GoogleFonts.inter(color: textSecondary),
+                      prefixIcon: Icon(Icons.search, color: textSecondary),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear),
+                              icon: Icon(Icons.clear, color: textSecondary),
                               onPressed: () =>
                                   setState(() => _searchQuery = ''),
                             )
                           : null,
+                      filled: true,
+                      fillColor: cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+
+                  // Filter Row
                   Row(
                     children: [
-                      // Period selector
-                      Expanded(child: _buildPeriodSelector()),
-                      const SizedBox(width: 12),
-                      // Category filter
                       Expanded(
-                        child: _buildCategoryFilter(
-                          categoryExpenses.keys.toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedPeriod,
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: textSecondary,
+                              ),
+                              dropdownColor: cardColor,
+                              style: GoogleFonts.inter(color: textPrimary),
+                              items: ['Day', 'Week', 'Month', 'Year'].map((p) {
+                                return DropdownMenuItem(
+                                  value: p,
+                                  child: Text(p),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() => _selectedPeriod = val);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedCategory,
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.filter_list,
+                                color: textSecondary,
+                              ),
+                              dropdownColor: cardColor,
+                              style: GoogleFonts.inter(color: textPrimary),
+                              items: _getCategoryItems(
+                                categoryExpenses.keys.toList(),
+                              ),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() => _selectedCategory = val);
+                                }
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
 
-            // Total card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor,
-                    AppTheme.primaryColor.withValues(alpha: 0.7),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Total Expenses',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₹${total.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 20),
+
+                  // Total Card (Modern Style)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentBlue, const Color(0xFF1A237E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentBlue.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Total Expenses',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '₹${NumberFormat('#,##,##0.00', 'en_IN').format(total)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${filteredExpenses.length} transactions',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${filteredExpenses.length} transactions',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
                 ],
               ),
             ),
 
-            // Tab content
+            // Content List
             Expanded(
               child: filteredExpenses.isEmpty
-                  ? _buildEmptyState(context)
+                  ? _buildEmptyState(context, textPrimary, textSecondary)
                   : TabBarView(
                       children: [
-                        _buildExpenseList(filteredExpenses, financialManager),
-                        _buildCategoriesView(categoryExpenses, total),
-                        _buildRecentView(filteredExpenses, financialManager),
+                        _buildExpenseList(
+                          filteredExpenses,
+                          financialManager,
+                          context,
+                        ),
+                        _buildCategoriesView(categoryExpenses, total, context),
+                        _buildRecentView(
+                          filteredExpenses,
+                          financialManager,
+                          context,
+                        ),
                       ],
                     ),
             ),
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'add_expense_fab',
+          backgroundColor: accentBlue,
+          foregroundColor: Colors.white,
           onPressed: () {
             showDialog(
               context: context,
@@ -214,27 +343,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildPeriodSelector() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedPeriod,
-      decoration: InputDecoration(
-        labelText: 'Period',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Theme.of(context).scaffoldBackgroundColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      items: ['Day', 'Week', 'Month', 'Year'].map((period) {
-        return DropdownMenuItem(value: period, child: Text(period));
-      }).toList(),
-      onChanged: (value) {
-        if (value != null) setState(() => _selectedPeriod = value);
-      },
-    );
-  }
-
-  Widget _buildCategoryFilter(List<String> categories) {
-    // Combine existing categories with new ones for the filter
+  List<DropdownMenuItem<String>> _getCategoryItems(List<String> categories) {
     final allCategories = {
       'All',
       ...categories,
@@ -256,33 +365,24 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       'Others',
     }.toList();
 
-    // Ensure selected category is in the list, if not reset to All
     if (!allCategories.contains(_selectedCategory)) {
       _selectedCategory = 'All';
     }
 
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedCategory,
-      decoration: InputDecoration(
-        labelText: 'Category',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Theme.of(context).scaffoldBackgroundColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      items: allCategories
-          .toSet()
-          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-          .toList(),
-      onChanged: (value) {
-        if (value != null) setState(() => _selectedCategory = value);
-      },
-    );
+    return allCategories
+        .map(
+          (cat) => DropdownMenuItem(
+            value: cat,
+            child: Text(cat, overflow: TextOverflow.ellipsis),
+          ),
+        )
+        .toList();
   }
 
   Widget _buildExpenseList(
     List<Expense> expenses,
     FinancialDataManager provider,
+    BuildContext context,
   ) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -293,275 +393,33 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildCategoriesView(
-    Map<String, double> categoryExpenses,
-    double total,
-  ) {
-    final sortedEntries = categoryExpenses.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedEntries.length,
-      itemBuilder: (context, index) {
-        final entry = sortedEntries[index];
-        final percentage = (entry.value / total) * 100;
-        return _buildCategoryCard(context, entry.key, entry.value, percentage);
-      },
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context,
-    String category,
-    double amount,
-    double percentage,
-  ) {
-    final color = AppTheme.getCategoryColor(category);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: FaIcon(
-                  _getCategoryIcon(category),
-                  color: color,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${percentage.toStringAsFixed(1)}% of total',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '₹${amount.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            value: percentage / 100,
-            backgroundColor: color.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation(color),
-            borderRadius: BorderRadius.circular(4),
-            minHeight: 8,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentView(
-    List<Expense> expenses,
-    FinancialDataManager provider,
-  ) {
-    final recentExpenses = expenses.take(20).toList();
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: recentExpenses.length,
-      itemBuilder: (context, index) {
-        return _buildCompactTransaction(
-          context,
-          recentExpenses[index],
-          provider,
-        );
-      },
-    );
-  }
-
-  Widget _buildCompactTransaction(
-    BuildContext context,
-    Expense expense,
-    FinancialDataManager provider,
-  ) {
-    final color = AppTheme.getCategoryColor(expense.category);
-
-    return Dismissible(
-      key: Key(expense.id ?? ''),
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          color: AppTheme.errorColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerRight,
-        child: const FaIcon(FontAwesomeIcons.trash, color: Colors.white),
-      ),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (direction) async {
-        return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Delete Expense?'),
-            content: const Text('This action cannot be undone.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.errorColor,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-      },
-      onDismissed: (direction) {
-        provider.deleteExpense(expense.id ?? '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Expense deleted'),
-            action: SnackBarAction(
-              label: 'Undo',
-              onPressed: () => provider.addExpense(expense),
-            ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: FaIcon(
-                _getCategoryIcon(expense.category),
-                color: color,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    expense.category,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  if (expense.description.isNotEmpty)
-                    Text(
-                      expense.description,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '₹${expense.amount.toStringAsFixed(2)}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '${DateFormat('MMM d').format(expense.date)} • ${DateFormat('h:mm a').format(expense.date)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTransactionItem(
     BuildContext context,
     Expense expense,
     FinancialDataManager provider,
   ) {
     final color = AppTheme.getCategoryColor(expense.category);
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
 
     return Dismissible(
       key: Key(expense.id ?? ''),
       background: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: AppTheme.errorColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
         child: const FaIcon(FontAwesomeIcons.trash, color: Colors.white),
       ),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (direction) async {
-        return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Delete Expense?'),
-            content: Text(
-              'Delete ${expense.category} expense of ₹${expense.amount}?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.errorColor,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-      },
-      onDismissed: (direction) {
+      confirmDismiss: (_) async => await _confirmDelete(context),
+      onDismissed: (_) {
         provider.deleteExpense(expense.id ?? '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -577,22 +435,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
               child: FaIcon(
-                _getCategoryIcon(expense.category),
+                AppTheme.getCategoryIcon(expense.category),
                 color: color,
-                size: 24,
+                size: 20,
               ),
             ),
             const SizedBox(width: 16),
@@ -602,57 +466,39 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 children: [
                   Text(
                     expense.category,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: textPrimary,
+                    ),
                   ),
-                  if (expense.description.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                  if (expense.description.isNotEmpty)
                     Text(
                       expense.description,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 2,
+                      style: GoogleFonts.inter(
+                        color: textSecondary,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      FaIcon(
-                        FontAwesomeIcons.calendar,
-                        size: 12,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        DateFormat('MMM d, yyyy').format(expense.date),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(width: 8),
-                      FaIcon(
-                        FontAwesomeIcons.clock,
-                        size: 12,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        DateFormat('h:mm a').format(expense.date),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                  Text(
+                    DateFormat('MMM d, h:mm a').format(expense.date),
+                    style: GoogleFonts.inter(
+                      color: textSecondary,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '₹${expense.amount.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.errorColor,
-                  ),
-                ),
-              ],
+            Text(
+              '-₹${NumberFormat('#,##,##0').format(expense.amount)}',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: textPrimary,
+              ),
             ),
           ],
         ),
@@ -660,70 +506,134 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return FontAwesomeIcons.utensils;
-      case 'transport':
-        return FontAwesomeIcons.car;
-      case 'shopping':
-        return FontAwesomeIcons.bagShopping;
-      case 'entertainment':
-        return FontAwesomeIcons.film;
-      case 'bills':
-      case 'utilities':
-        return FontAwesomeIcons.fileInvoice;
-      case 'health':
-        return FontAwesomeIcons.heartPulse;
-      case 'education':
-        return FontAwesomeIcons.graduationCap;
-      case 'rent':
-        return FontAwesomeIcons.house;
-      case 'insurance':
-        return FontAwesomeIcons.shieldHalved;
-      case 'groceries':
-        return FontAwesomeIcons.basketShopping;
-      case 'dining out':
-        return FontAwesomeIcons.burger;
-      case 'travel':
-        return FontAwesomeIcons.plane;
-      case 'personal care':
-        return FontAwesomeIcons.spa;
-      case 'gifts':
-        return FontAwesomeIcons.gift;
-      case 'investments':
-        return FontAwesomeIcons.chartLine;
-      default:
-        return FontAwesomeIcons.wallet;
-    }
+  Widget _buildRecentView(
+    List<Expense> expenses,
+    FinancialDataManager provider,
+    BuildContext context,
+  ) {
+    final recent = expenses.take(15).toList();
+    return _buildExpenseList(recent, provider, context);
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildCategoriesView(
+    Map<String, double> categoryExpenses,
+    double total,
+    BuildContext context,
+  ) {
+    final sortedEntries = categoryExpenses.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: sortedEntries.length,
+      itemBuilder: (context, index) {
+        final entry = sortedEntries[index];
+        final percentage = total > 0 ? (entry.value / total) * 100 : 0.0;
+        return _buildCategoryCard(context, entry.key, entry.value, percentage);
+      },
+    );
+  }
+
+  Widget _buildCategoryCard(
+    BuildContext context,
+    String category,
+    double amount,
+    double percentage,
+  ) {
+    final color = AppTheme.getCategoryColor(category);
+    final cardColor = Theme.of(context).cardColor;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: FaIcon(
+                  AppTheme.getCategoryIcon(category),
+                  color: color,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  category,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '${percentage.toStringAsFixed(1)}%',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percentage / 100,
+              backgroundColor: color.withValues(alpha: 0.1),
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '₹${NumberFormat('#,##,##0').format(amount)}',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           FaIcon(
             FontAwesomeIcons.receipt,
-            size: 64,
-            color: Theme.of(
-              context,
-            ).textTheme.bodySmall?.color?.withValues(alpha: 0.5),
+            size: 48,
+            color: textSecondary.withValues(alpha: 0.3),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'No matching expenses'
-                : 'No expenses yet',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'Try adjusting your search or filters'
-                : 'Start tracking your spending by adding expenses',
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
+            'No expenses found',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
           ),
         ],
       ),
@@ -732,23 +642,41 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void _showChartsDialog(
     BuildContext context,
-    Map<String, double> categoryExpenses,
+    Map<String, double> data,
     double total,
   ) {
+    // Keep existing logic but styled better if needed, or just standard Dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Expense Charts'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Expense Breakdown',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+        ),
         content: SizedBox(
-          width: double.maxFinite,
           height: 300,
-          child: categoryExpenses.isEmpty
-              ? const Center(child: Text('No data to display'))
+          width: 300,
+          child: data.isEmpty
+              ? const Center(child: Text('No Data'))
               : PieChart(
                   PieChartData(
-                    sections: _buildPieChartSections(categoryExpenses, total),
-                    sectionsSpace: 2,
+                    sections: data.entries.map((e) {
+                      final pct = total > 0 ? (e.value / total) * 100 : 0;
+                      return PieChartSectionData(
+                        color: AppTheme.getCategoryColor(e.key),
+                        value: e.value,
+                        title: '${pct.toStringAsFixed(0)}%',
+                        radius: 50,
+                        titleStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      );
+                    }).toList(),
                     centerSpaceRadius: 40,
+                    sectionsSpace: 2,
                   ),
                 ),
         ),
@@ -762,61 +690,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  List<PieChartSectionData> _buildPieChartSections(
-    Map<String, double> categoryExpenses,
-    double total,
-  ) {
-    return categoryExpenses.entries.map((entry) {
-      final percentage = (entry.value / total) * 100;
-      return PieChartSectionData(
-        value: entry.value,
-        title: '${percentage.toStringAsFixed(1)}%',
-        color: AppTheme.getCategoryColor(entry.key),
-        radius: 60,
-      );
-    }).toList();
+  void _showExportOptions(BuildContext context) {
+    // Placeholder
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Export coming soon')));
   }
 
-  void _showExportOptions(BuildContext context) {
-    showModalBottomSheet(
+  Future<bool?> _confirmDelete(BuildContext context) {
+    return showDialog<bool>(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const FaIcon(FontAwesomeIcons.filePdf),
-              title: const Text('Export as PDF'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PDF export coming soon!')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const FaIcon(FontAwesomeIcons.fileCsv),
-              title: const Text('Export as CSV'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('CSV export coming soon!')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const FaIcon(FontAwesomeIcons.share),
-              title: const Text('Share Report'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share feature coming soon!')),
-                );
-              },
-            ),
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: const Text('Delete Expense?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

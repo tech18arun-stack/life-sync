@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../utils/app_theme.dart';
@@ -38,6 +39,14 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _initializeAnimations();
     _startAnimationSequence();
+
+    // Listen for auth state changes that might happen when user confirms email
+    _listenForAuthChanges();
+  }
+
+  void _listenForAuthChanges() {
+    // Listen for auth state changes to handle email confirmation
+    // This will help navigate to home screen when user confirms email
   }
 
   void _initializeAnimations() {
@@ -111,20 +120,22 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startAnimationSequence() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 100)); // Quick startup
     _logoController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 500));
     _iconController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 300));
     _textController.forward();
 
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 100));
     _progressController.forward();
 
-    // Check auth status and navigate
-    await Future.delayed(const Duration(milliseconds: 2000));
+    // Check auth status and navigate quickly
+    await Future.delayed(
+      const Duration(milliseconds: 1000),
+    ); // Reduced from 2000ms
     if (mounted) {
       await _checkAuthAndNavigate();
     }
@@ -190,17 +201,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryColor,
-              AppTheme.secondaryColor,
-              AppTheme.accentColor,
-            ],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
         child: Stack(
           children: [
             // Animated particles background
@@ -269,15 +270,14 @@ class _SplashScreenState extends State<SplashScreen>
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 30,
-                    spreadRadius: 5,
+                    spreadRadius: 10,
                   ),
                 ],
               ),
-              child: ClipOval(
-                child: Image.asset('assets/logo.png', fit: BoxFit.cover),
-              ),
+              padding: const EdgeInsets.all(24),
+              child: Image.asset('assets/logo.png', fit: BoxFit.contain),
             ),
           ),
         );
@@ -328,22 +328,30 @@ class _SplashScreenState extends State<SplashScreen>
     return Column(
       children: [
         Container(
-          width: 60,
-          height: 60,
+          width: 64,
+          height: 64,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: Center(child: FaIcon(icon, color: Colors.white, size: 28)),
+          child: Center(child: FaIcon(icon, color: color, size: 24)),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           label,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
         ),
       ],
@@ -355,23 +363,30 @@ class _SplashScreenState extends State<SplashScreen>
       opacity: _textFade,
       child: Column(
         children: [
-          const Text(
+          Text(
             'LifeSync',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color: Colors.white,
-              fontSize: 32,
+              fontSize: 40,
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+              letterSpacing: -1.0,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
-            'Plan • Track • Achieve',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+            'Family Finance & Wellness',
+            style: GoogleFonts.inter(
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 16,
-              fontWeight: FontWeight.w400,
-              letterSpacing: 2,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -387,10 +402,10 @@ class _SplashScreenState extends State<SplashScreen>
           children: [
             Container(
               width: 200,
-              height: 4,
+              height: 6,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(3),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
@@ -398,24 +413,24 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         blurRadius: 8,
-                        spreadRadius: 2,
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
-              'Loading your financial insights...',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 14,
+              'Syncing your family data...',
+              style: GoogleFonts.inter(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -433,32 +448,33 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.fill;
 
     // Draw floating particles
-    for (int i = 0; i < 20; i++) {
-      final x = (size.width / 20) * i;
-      final y = (size.height * ((i * 0.1 + animationValue) % 1.0));
-      final radius = 2 + (i % 3) * 2.0;
+    for (int i = 0; i < 15; i++) {
+      final x = (size.width / 15) * i;
+      final y = (size.height * ((i * 0.15 + animationValue) % 1.0));
+      final radius = 2.0 + (i % 3) * 2.0;
 
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
 
-    // Draw currency symbols
+    // Draw subtle currency symbols
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     final symbols = ['₹', '\$', '€', '£', '¥'];
     for (int i = 0; i < symbols.length; i++) {
       final x = (size.width / 5) * i + 40;
-      final y = (size.height * ((i * 0.15 + animationValue * 0.5) % 1.0));
+      final y = (size.height * ((i * 0.2 + animationValue * 0.7) % 1.0));
 
       textPainter.text = TextSpan(
         text: symbols[i],
         style: TextStyle(
-          color: Colors.white.withOpacity(0.05),
-          fontSize: 40,
-          fontWeight: FontWeight.bold,
+          color: Colors.white.withValues(alpha: 0.1),
+          fontSize: 32,
+          fontWeight: FontWeight.w100,
+          fontFamily: GoogleFonts.inter().fontFamily,
         ),
       );
 

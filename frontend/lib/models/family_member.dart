@@ -1,6 +1,7 @@
-/// FamilyMember model for MongoDB
+/// FamilyMember model for Supabase
 class FamilyMember {
   String? id;
+  String? userId;
   String name;
   String? relation;
   DateTime? dateOfBirth;
@@ -14,6 +15,7 @@ class FamilyMember {
 
   FamilyMember({
     this.id,
+    this.userId,
     required this.name,
     this.relation,
     this.dateOfBirth,
@@ -29,6 +31,7 @@ class FamilyMember {
   factory FamilyMember.fromJson(Map<String, dynamic> json) {
     return FamilyMember(
       id: json['_id'] ?? json['id'],
+      userId: json['user_id'] ?? json['userId'],
       name: json['name'] ?? '',
       relation: json['relation'],
       dateOfBirth: json['dateOfBirth'] != null
@@ -51,6 +54,7 @@ class FamilyMember {
   Map<String, dynamic> toJson() {
     return {
       if (id != null) '_id': id,
+      if (userId != null) 'user_id': userId,
       'name': name,
       if (relation != null) 'relation': relation,
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth!.toIso8601String(),
@@ -64,6 +68,7 @@ class FamilyMember {
 
   FamilyMember copyWith({
     String? id,
+    String? userId,
     String? name,
     String? relation,
     DateTime? dateOfBirth,
@@ -75,6 +80,7 @@ class FamilyMember {
   }) {
     return FamilyMember(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       relation: relation ?? this.relation,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,

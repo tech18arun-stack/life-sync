@@ -2,11 +2,11 @@ import 'package:flutter/foundation.dart';
 import '../models/reminder.dart';
 import '../models/expense.dart';
 import 'financial_data_manager.dart';
-import '../services/api_service.dart';
+import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 
 class ReminderProvider with ChangeNotifier {
-  final ApiService _api = ApiService();
+  final SupabaseService _supabase = SupabaseService();
   List<Reminder> _reminders = [];
   bool _isLoading = false;
   String? _error;
@@ -26,7 +26,7 @@ class ReminderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _api.getReminders();
+      final data = await _supabase.getReminders(); // Add userId filter if needed
       _reminders = data.map((r) => Reminder.fromJson(r)).toList();
     } catch (e) {
       _error = e.toString();
@@ -39,7 +39,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> addReminder(Reminder reminder) async {
     try {
-      final response = await _api.createReminder(reminder.toJson());
+      final response = await _supabase.createReminder(reminder.toJson());
       final newReminder = Reminder.fromJson(response);
       _reminders.add(newReminder);
       NotificationService().scheduleReminderNotification(newReminder);
@@ -52,7 +52,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> updateReminder(Reminder reminder) async {
     try {
-      final response = await _api.updateReminder(
+      final response = await _supabase.updateReminder(
         reminder.id!,
         reminder.toJson(),
       );
@@ -71,7 +71,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> deleteReminder(String id) async {
     try {
-      await _api.deleteReminder(id);
+      await _supabase.deleteReminder(id);
       NotificationService().cancelNotification(id.hashCode);
       _reminders.removeWhere((r) => r.id == id);
       notifyListeners();
@@ -83,8 +83,15 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> markAsPaid(String id) async {
     try {
-      final response = await _api.markReminderPaid(id);
+      // Update the reminder's paid status
+      final reminder = _reminders.firstWhere((r) => r.id == id);
+      reminder.isPaid = true;
+
+      // Update the reminder in the database
+      final updatedReminderData = reminder.toJson();
+      final response = await _supabase.updateReminder(id, updatedReminderData);
       final updatedReminder = Reminder.fromJson(response);
+
       final index = _reminders.indexWhere((r) => r.id == id);
       if (index != -1) {
         _reminders[index] = updatedReminder;
