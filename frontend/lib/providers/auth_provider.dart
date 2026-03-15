@@ -1,13 +1,15 @@
+// ignore_for_file: library_prefixes
+
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user.dart' as AppUser;
 import '../services/auth_service.dart';
 
 /// Authentication Provider for state management
+///
+/// Updated for Appwrite authentication.
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  bool _isLoggedIn = false;
   bool _isLoading = false;
   bool _isInitialized = false;
   String? _error;
@@ -15,10 +17,12 @@ class AuthProvider with ChangeNotifier {
   // Getters
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
-  bool get isLoggedIn => _isLoggedIn;
+  bool get isLoggedIn => _authService.isLoggedIn;
   AppUser.User? get currentUser => _authService.currentUser;
   String? get token => _authService.token;
   String? get error => _error;
+  bool get isAdmin => _authService.isAdmin;
+  bool get isClient => _authService.isClient;
 
   /// Initialize auth state
   Future<bool> initialize() async {
@@ -29,31 +33,11 @@ class AuthProvider with ChangeNotifier {
 
     final result = await _authService.initialize();
 
-    // Listen for auth state changes to handle email confirmation, etc.
-    _listenForAuthStateChanges();
-
     _isLoading = false;
     _isInitialized = true;
     notifyListeners();
 
     return result;
-  }
-
-  /// Listen for auth state changes to handle email confirmation, etc.
-  void _listenForAuthStateChanges() {
-    _authService.client.auth.onAuthStateChange.listen((data) {
-      final event = data.event;
-      final session = data.session;
-
-      if (event == AuthChangeEvent.signedIn && session != null) {
-        // User successfully authenticated (could be via email confirmation)
-        _isLoggedIn = true;
-        notifyListeners();
-      } else if (event == AuthChangeEvent.signedOut) {
-        _isLoggedIn = false;
-        notifyListeners();
-      }
-    });
   }
 
   /// Register new user
@@ -77,10 +61,6 @@ class AuthProvider with ChangeNotifier {
     _isLoading = false;
 
     if (result['success']) {
-      if (result['requiresConfirmation'] == true) {
-        // User needs to confirm their email
-        _error = 'Please check your email to confirm your account.';
-      }
       notifyListeners();
       return true;
     } else {
@@ -151,7 +131,6 @@ class AuthProvider with ChangeNotifier {
 
   /// Change password
   Future<bool> changePassword({
-    required String currentPassword,
     required String newPassword,
   }) async {
     _isLoading = true;
@@ -159,7 +138,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     final result = await _authService.changePassword(
-      currentPassword: currentPassword,
       newPassword: newPassword,
     );
 
@@ -173,6 +151,60 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Request password reset
+  Future<bool> resetPassword(String email) async {
+    _error = null;
+    notifyListeners();
+
+    final result = await _authService.resetPassword(email);
+
+    if (result['success']) {
+      notifyListeners();
+      return true;
+    } else {
+      _error = result['error'];
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Create family member user (CLIENT)
+  Future<bool> createFamilyMemberUser({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    String? relation,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final result = await _authService.createFamilyMemberUser(
+      name: name,
+      email: email,
+      password: password,
+      phone: phone,
+      relation: relation,
+    );
+
+    _isLoading = false;
+
+    if (result['success']) {
+      notifyListeners();
+      return true;
+    } else {
+      _error = result['error'];
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Get all family member users
+  Future<List<AppUser.User>> getFamilyMemberUsers() async {
+    return _authService.getFamilyMemberUsers();
   }
 
   /// Clear error

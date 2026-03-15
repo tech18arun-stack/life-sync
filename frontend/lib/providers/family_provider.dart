@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/family_member.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 
+/// Family Provider - State management for family members
+/// 
+/// Updated to use Appwrite backend via FamilyMembersRepository.
 class FamilyProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final FamilyMembersRepository _repository = FamilyMembersRepository();
 
   List<FamilyMember> _members = [];
   bool _isLoading = false;
@@ -19,8 +22,7 @@ class FamilyProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getFamilyMembers(); // Add userId filter if needed
-      _members = data.map((m) => FamilyMember.fromJson(m)).toList();
+      _members = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading family members: $e');
@@ -35,8 +37,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> addMember(FamilyMember member) async {
     try {
-      final response = await _supabase.createFamilyMember(member.toJson());
-      final newMember = FamilyMember.fromJson(response);
+      final newMember = await _repository.create(member);
       _members.add(newMember);
       notifyListeners();
     } catch (e) {
@@ -47,11 +48,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> updateMember(FamilyMember member) async {
     try {
-      final response = await _supabase.updateFamilyMember(
-        member.id!,
-        member.toJson(),
-      );
-      final updatedMember = FamilyMember.fromJson(response);
+      final updatedMember = await _repository.update(member.id!, member);
       final index = _members.indexWhere((m) => m.id == member.id);
       if (index != -1) {
         _members[index] = updatedMember;
@@ -65,7 +62,7 @@ class FamilyProvider with ChangeNotifier {
 
   Future<void> deleteMember(String id) async {
     try {
-      await _supabase.deleteFamilyMember(id);
+      await _repository.delete(id);
       _members.removeWhere((m) => m.id == id);
       notifyListeners();
     } catch (e) {

@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 import '../services/notification_service.dart';
 
+/// Task Provider - State management for tasks
+/// 
+/// Updated to use Appwrite backend via TasksRepository.
 class TaskProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final TasksRepository _repository = TasksRepository();
   final _notificationService = NotificationService();
 
   List<Task> _tasks = [];
@@ -21,8 +24,7 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getTasks(); // Add userId filter if needed
-      _tasks = data.map((t) => Task.fromJson(t)).toList();
+      _tasks = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading tasks: $e');
@@ -37,8 +39,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> addTask(Task task) async {
     try {
-      final response = await _supabase.createTask(task.toJson());
-      final newTask = Task.fromJson(response);
+      final newTask = await _repository.create(task);
       _tasks.add(newTask);
 
       // Schedule notification for the new task
@@ -53,8 +54,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> updateTask(Task task) async {
     try {
-      final response = await _supabase.updateTask(task.id!, task.toJson());
-      final updatedTask = Task.fromJson(response);
+      final updatedTask = await _repository.update(task.id!, task);
       final index = _tasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
         _tasks[index] = updatedTask;
@@ -73,7 +73,7 @@ class TaskProvider with ChangeNotifier {
 
   Future<void> deleteTask(String id) async {
     try {
-      await _supabase.deleteTask(id);
+      await _repository.delete(id);
       _tasks.removeWhere((t) => t.id == id);
 
       // Cancel notifications for deleted task

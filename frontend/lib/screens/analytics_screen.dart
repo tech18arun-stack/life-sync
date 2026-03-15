@@ -10,7 +10,9 @@ import '../widgets/expense_prediction_card.dart';
 import '../services/gemini_service.dart';
 import '../providers/financial_data_manager.dart';
 import '../widgets/ai_tips_card.dart';
+import '../widgets/rewarded_ad_dialog.dart';
 import '../utils/app_theme.dart';
+import '../services/startio_ads.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -24,6 +26,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _aiEnabled = false;
   String? _aiAnalysis;
   bool _isLoadingAI = false;
+  bool _premiumUnlocked = false;
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       body: Consumer<AnalyticsProvider>(
         builder: (context, analytics, child) {
           final trends = analytics.getTrendData(days: 30);
@@ -102,15 +106,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       const SizedBox(height: 24),
 
                       // AI Analysis
-                      if (_aiEnabled && (_aiAnalysis != null || _isLoadingAI))
+                      if (_aiEnabled &&
+                          (_aiAnalysis != null ||
+                              _isLoadingAI ||
+                              _premiumUnlocked))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 24),
                           child: AITipsCard(
-                            tip: _aiAnalysis,
+                            tip: _premiumUnlocked
+                                ? _aiAnalysis
+                                : 'Watch ad to unlock premium insights',
                             isLoading: _isLoadingAI,
                             onRefresh: _loadAIAnalysis,
                             title: '🤖 AI Trend Analysis',
                           ),
+                        ),
+
+                      // Watch Ad for Premium Features
+                      if (_aiEnabled && !_premiumUnlocked)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: _buildPremiumUnlockCard(context),
                         ),
 
                       // Prediction Card
@@ -123,6 +139,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                       // Monthly Comparison
                       MonthlyComparisonWidget(comparisonData: comparison),
+                      const SizedBox(height: 24),
+                      const Center(child: StartioMrec()),
                       const SizedBox(height: 24),
 
                       // Category Breakdown
@@ -379,6 +397,112 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPremiumUnlockCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF6C63FF), const Color(0xFF8B85FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unlock Premium Insights',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Watch a short video to unlock AI analysis',
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => RewardedAdDialog(
+                    featureName: 'AI Analytics',
+                    onRewardEarned: () {
+                      setState(() {
+                        _premiumUnlocked = true;
+                      });
+                      // Load AI analysis after unlocking
+                      _loadAIAnalysis();
+                    },
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF6C63FF),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.play_circle_filled, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Watch & Unlock',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -10,6 +10,10 @@ import '../services/security_service.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
+import '../services/startio_ads.dart';
+import '../services/config_service.dart';
+import '../widgets/app_updater_dialog.dart';
+import 'ad_test_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -95,6 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: isDark
           ? AppTheme.backgroundColor
           : const Color(0xFFF7F9FC),
+      bottomNavigationBar: const StartioBanner(),
       appBar: AppBar(
         title: Text(
           'Settings',
@@ -305,6 +310,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: FontAwesomeIcons.codeBranch,
                 onTap: () {
                   _showUpdateDialog(context);
+                },
+              ),
+              _buildDivider(context),
+              // Ad Testing (Debug Only)
+              _buildSettingTile(
+                context,
+                title: '📢 Test Ads (Debug)',
+                subtitle: 'Test Start.io ad integration',
+                icon: FontAwesomeIcons.flask,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdTestScreen()),
+                  );
                 },
               ),
               _buildDivider(context),
@@ -893,41 +912,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showUpdateDialog(BuildContext context) {
+    final config = ConfigService();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'What\'s New',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Version 1.0.0',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '• New Premium Design\n• Enhanced Reports\n• Dark Mode Improvements',
-                style: GoogleFonts.inter(height: 1.5),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: GoogleFonts.inter()),
-          ),
-        ],
+      builder: (context) => AppUpdaterDialog(
+        downloadUrl: config.downloadUrl,
+        latestVersion: config.latestVersion,
+        releaseNotes: config.updateMessage,
+        forceUpdate: false,
       ),
     );
   }

@@ -130,7 +130,7 @@ class _AddHealthRecordDialogState extends State<AddHealthRecordDialog> {
 
                       _buildLabel('Record Type'),
                       DropdownButtonFormField<String>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         dropdownColor: cardColor,
                         style: GoogleFonts.inter(color: textPrimary),
                         decoration: _inputDecoration(

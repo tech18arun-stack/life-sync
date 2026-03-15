@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// HealthRecord model with comprehensive health tracking
 class HealthRecord {
   String? id;
@@ -65,6 +67,12 @@ class HealthRecord {
   });
 
   Map<String, dynamic> toJson() {
+    final Map<String, dynamic> metadata = {};
+    if (vitals != null) metadata['vitals'] = vitals!.toJson();
+    if (labResults != null) metadata['labResults'] = labResults!.toJson();
+    if (allergy != null) metadata['allergy'] = allergy!.toJson();
+    if (insurance != null) metadata['insurance'] = insurance!.toJson();
+
     return {
       if (id != null) 'id': id,
       if (userId != null) 'user_id': userId,
@@ -81,10 +89,22 @@ class HealthRecord {
         'next_visit': nextVisit!.toIso8601String().split('T')[0],
       if (notes != null) 'notes': notes,
       if (attachments != null) 'attachments': attachments,
+      if (metadata.isNotEmpty) 'metadata': jsonEncode(metadata),
     };
   }
 
   factory HealthRecord.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? metadata;
+    if (json['metadata'] != null &&
+        json['metadata'] is String &&
+        json['metadata'].isNotEmpty) {
+      try {
+        metadata = jsonDecode(json['metadata']) as Map<String, dynamic>;
+      } catch (e) {
+        // Handle potential parsing errors gracefully
+      }
+    }
+
     return HealthRecord(
       id: json['id'] ?? json['_id'],
       userId: json['user_id'] ?? json['userId'],
@@ -106,16 +126,24 @@ class HealthRecord {
                 : null),
       notes: json['notes'],
       isActive: json['is_active'] ?? json['isActive'] ?? true,
-      vitals: json['vitals'] != null ? Vitals.fromJson(json['vitals']) : null,
-      labResults: json['labResults'] != null
-          ? LabResult.fromJson(json['labResults'])
-          : null,
-      allergy: json['allergy'] != null
-          ? AllergyInfo.fromJson(json['allergy'])
-          : null,
-      insurance: json['insurance'] != null
-          ? InsuranceInfo.fromJson(json['insurance'])
-          : null,
+      vitals: metadata?['vitals'] != null
+          ? Vitals.fromJson(metadata!['vitals'])
+          : (json['vitals'] != null ? Vitals.fromJson(json['vitals']) : null),
+      labResults: metadata?['labResults'] != null
+          ? LabResult.fromJson(metadata!['labResults'])
+          : (json['labResults'] != null
+                ? LabResult.fromJson(json['labResults'])
+                : null),
+      allergy: metadata?['allergy'] != null
+          ? AllergyInfo.fromJson(metadata!['allergy'])
+          : (json['allergy'] != null
+                ? AllergyInfo.fromJson(json['allergy'])
+                : null),
+      insurance: metadata?['insurance'] != null
+          ? InsuranceInfo.fromJson(metadata!['insurance'])
+          : (json['insurance'] != null
+                ? InsuranceInfo.fromJson(json['insurance'])
+                : null),
       bloodType: json['blood_type'] ?? json['bloodType'],
       vaccineDose: json['vaccine_dose'] ?? json['vaccineDose'],
       vaccineManufacturer:

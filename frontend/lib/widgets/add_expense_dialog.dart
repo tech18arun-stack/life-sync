@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/expense.dart';
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 
 class AddExpenseDialog extends StatefulWidget {
   final Expense? expense;
@@ -118,13 +119,14 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
     final inputFillColor = isDark
         ? Colors.grey.withValues(alpha: 0.1)
         : Colors.grey.withValues(alpha: 0.05);
+    final isDesktop = Responsive.isDesktop(context);
 
     return Dialog(
       backgroundColor: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       elevation: 10,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isDesktop ? 32 : 24),
         child: Form(
           key: _formKey,
           child: Column(
@@ -138,7 +140,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   Text(
                     widget.expense == null ? 'New Expense' : 'Edit Expense',
                     style: GoogleFonts.inter(
-                      fontSize: 24,
+                      fontSize: Responsive.getFontSize(context, FontSizeType.headline),
                       fontWeight: FontWeight.bold,
                       color: textPrimary,
                     ),
@@ -153,7 +155,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: isDesktop ? 32 : 24),
 
               // Title Input
               _buildLabel('Title'),
@@ -408,11 +410,14 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
   Widget _buildLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      padding: EdgeInsets.only(
+        bottom: Responsive.isDesktop(context) ? 12 : 8,
+        left: 4,
+      ),
       child: Text(
         label,
         style: GoogleFonts.inter(
-          fontSize: 12,
+          fontSize: Responsive.getFontSize(context, FontSizeType.small),
           fontWeight: FontWeight.w600,
           color: Theme.of(context).textTheme.bodyMedium?.color,
         ),

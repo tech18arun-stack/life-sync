@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/financial_data_manager.dart';
 import '../providers/reminder_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
+import '../services/startio_ads.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -32,6 +34,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     // 1. Data Aggregation
     final financialManager = Provider.of<FinancialDataManager>(context);
     final reminderProvider = Provider.of<ReminderProvider>(context);
+    final isDesktop = Responsive.isDesktop(context);
 
     List<HistoryItem> items = _aggregateData(
       financialManager,
@@ -47,9 +50,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         .where((i) => i.amount > 0 && i.type == 'Income')
         .fold(0, (sum, item) => sum + item.amount);
     final double totalExpense = filteredItems
-        .where(
-          (i) => i.amount < 0 || (i.type == 'Reminder' && i.amount > 0),
-        ) // Reminders are usually expenses to be paid
+        .where((i) => i.amount < 0 || (i.type == 'Reminder' && i.amount > 0))
         .fold(0, (sum, item) => sum + item.amount.abs());
 
     // Grouping
@@ -57,27 +58,39 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
           _buildSliverAppBar(context),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-              child: Column(
-                children: [
-                  _buildSummaryCard(totalIncome, totalExpense),
-                  const SizedBox(height: 20),
-                  _buildFilterRow(),
-                  const SizedBox(height: 20),
-                  if (filteredItems.isEmpty) _buildEmptyState(),
-                ],
+            child: ResponsiveWrapper(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isDesktop ? 32 : 20,
+                  10,
+                  isDesktop ? 32 : 20,
+                  20,
+                ),
+                child: Column(
+                  children: [
+                    _buildSummaryCard(totalIncome, totalExpense, context),
+                    SizedBox(height: isDesktop ? 24 : 20),
+                    _buildFilterRow(context),
+                    SizedBox(height: isDesktop ? 24 : 20),
+                    if (filteredItems.isEmpty) _buildEmptyState(context),
+                  ],
+                ),
               ),
             ),
           ),
           if (filteredItems.isNotEmpty)
             SliverPadding(
-              padding: const EdgeInsets.only(bottom: 80),
+              padding: EdgeInsets.only(
+                left: isDesktop ? 32 : 0,
+                right: isDesktop ? 32 : 0,
+                bottom: 80,
+              ),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final monthYear = groupedItems.keys.elementAt(index);
@@ -86,21 +99,30 @@ class _HistoryScreenState extends State<HistoryScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 24 : 20,
                           vertical: 8,
                         ),
                         child: Text(
                           monthYear.toUpperCase(),
                           style: GoogleFonts.inter(
                             color: Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: 12,
+                            fontSize: Responsive.getFontSize(
+                              context,
+                              FontSizeType.small,
+                            ),
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
                           ),
                         ),
                       ),
-                      ...monthItems.map((item) => _buildTransactionItem(item)),
+                      ...monthItems.map(
+                        (item) => _buildTransactionItem(item, context),
+                      ),
+                      if (index == 0 && monthItems.length > 3) ...[
+                        const SizedBox(height: 16),
+                        const Center(child: StartioMrec()),
+                      ],
                       const SizedBox(height: 16),
                     ],
                   );
@@ -286,9 +308,15 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildSummaryCard(double income, double expense) {
+  Widget _buildSummaryCard(
+    double income,
+    double expense,
+    BuildContext context,
+  ) {
+    final isDesktop = Responsive.isDesktop(context);
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isDesktop ? 32 : 24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -310,7 +338,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: EdgeInsets.all(isDesktop ? 8 : 6),
                       decoration: const BoxDecoration(
                         color: Color(0xFFE8F5E9),
                         shape: BoxShape.circle,
@@ -321,21 +349,24 @@ class _HistoryScreenState extends State<HistoryScreen>
                         color: Color(0xFF2ECC71),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: isDesktop ? 12 : 8),
                     Text(
                       'Total Income',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: Responsive.getFontSize(
+                          context,
+                          FontSizeType.small,
+                        ),
                         color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: isDesktop ? 12 : 8),
                 Text(
                   '₹${NumberFormat('#,##0').format(income)}',
                   style: GoogleFonts.inter(
-                    fontSize: 20,
+                    fontSize: isDesktop ? 24 : 20,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
@@ -350,14 +381,14 @@ class _HistoryScreenState extends State<HistoryScreen>
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(left: 20),
+              padding: EdgeInsets.only(left: isDesktop ? 24 : 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: EdgeInsets.all(isDesktop ? 8 : 6),
                         decoration: const BoxDecoration(
                           color: Color(0xFFFFEBEE),
                           shape: BoxShape.circle,
@@ -368,21 +399,24 @@ class _HistoryScreenState extends State<HistoryScreen>
                           color: Color(0xFFFF5252),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: isDesktop ? 12 : 8),
                       Text(
                         'Total Spent',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.small,
+                          ),
                           color: Colors.grey,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isDesktop ? 12 : 8),
                   Text(
                     '₹${NumberFormat('#,##0').format(expense)}',
                     style: GoogleFonts.inter(
-                      fontSize: 20,
+                      fontSize: isDesktop ? 24 : 20,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
@@ -396,28 +430,31 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildFilterRow() {
+  Widget _buildFilterRow(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildFilterChip('All'),
-          _buildFilterChip('Expenses'),
-          _buildFilterChip('Income'),
-          _buildFilterChip('Reminders'),
+          _buildFilterChip('All', context),
+          _buildFilterChip('Expenses', context),
+          _buildFilterChip('Income', context),
+          _buildFilterChip('Reminders', context),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label) {
+  Widget _buildFilterChip(String label, BuildContext context) {
     final selected = _filter == label;
     return GestureDetector(
       onTap: () => setState(() => _filter = label),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.isDesktop(context) ? 24 : 20,
+          vertical: Responsive.isDesktop(context) ? 12 : 10,
+        ),
         decoration: BoxDecoration(
           color: selected ? AppTheme.primaryColor : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(30),
@@ -432,16 +469,17 @@ class _HistoryScreenState extends State<HistoryScreen>
           style: GoogleFonts.inter(
             color: selected ? Colors.white : Colors.grey,
             fontWeight: FontWeight.w600,
-            fontSize: 13,
+            fontSize: Responsive.getFontSize(context, FontSizeType.small),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTransactionItem(HistoryItem item) {
+  Widget _buildTransactionItem(HistoryItem item, BuildContext context) {
     final bool isExpense = item.type == 'Expense';
     final bool isReminder = item.type == 'Reminder';
+    final isDesktop = Responsive.isDesktop(context);
 
     Color amountColor;
     if (isExpense) {
@@ -459,7 +497,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      margin: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 24 : 20,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -479,21 +520,25 @@ class _HistoryScreenState extends State<HistoryScreen>
             // Details view could go here
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isDesktop ? 20 : 16),
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: isDesktop ? 56 : 48,
+                  height: isDesktop ? 56 : 48,
                   decoration: BoxDecoration(
                     color: item.color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Center(
-                    child: FaIcon(item.icon, color: item.color, size: 20),
+                    child: FaIcon(
+                      item.icon,
+                      color: item.color,
+                      size: isDesktop ? 24 : 20,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: isDesktop ? 20 : 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,17 +549,23 @@ class _HistoryScreenState extends State<HistoryScreen>
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.subtitle,
+                          ),
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: isDesktop ? 6 : 4),
                       Text(
                         item.subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.body,
+                          ),
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
@@ -522,7 +573,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                         Text(
                           item.phoneNumber!,
                           style: GoogleFonts.inter(
-                            fontSize: 11,
+                            fontSize: Responsive.getFontSize(
+                              context,
+                              FontSizeType.small,
+                            ),
                             color: Colors.grey,
                           ),
                         ),
@@ -536,7 +590,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                       '${item.amount < 0 ? "-" : (isExpense ? "-" : "+")}₹${NumberFormat('#,##,##0').format(item.amount.abs())}',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: Responsive.getFontSize(
+                          context,
+                          FontSizeType.subtitle,
+                        ),
                         color: amountColor,
                       ),
                     ),
@@ -558,21 +615,24 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(40.0),
+        padding: EdgeInsets.all(Responsive.isDesktop(context) ? 60 : 40),
         child: Column(
           children: [
             Icon(
               Icons.history,
-              size: 48,
+              size: Responsive.isDesktop(context) ? 64 : 48,
               color: Colors.grey.withValues(alpha: 0.2),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.isDesktop(context) ? 24 : 16),
             Text(
               'No records found',
-              style: GoogleFonts.inter(color: Colors.grey),
+              style: GoogleFonts.inter(
+                color: Colors.grey,
+                fontSize: Responsive.getFontSize(context, FontSizeType.body),
+              ),
             ),
           ],
         ),

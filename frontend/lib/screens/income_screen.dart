@@ -6,7 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
+// import '../utils/responsive.dart'; // TODO: Add responsive updates
 import '../widgets/add_income_dialog.dart';
+import '../services/startio_ads.dart';
+import 'recent_income_screen.dart';
 
 class IncomeScreen extends StatefulWidget {
   const IncomeScreen({super.key});
@@ -46,17 +49,20 @@ class _IncomeScreenState extends State<IncomeScreen>
       length: 3,
       child: Scaffold(
         backgroundColor: backgroundColor,
+        bottomNavigationBar: const StartioBanner(),
         appBar: AppBar(
           title: Text(
             'Income & Balance',
             style: GoogleFonts.inter(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: textPrimary,
+              letterSpacing: -1,
             ),
           ),
           backgroundColor: backgroundColor,
           elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textPrimary),
             onPressed: () => Navigator.of(context).pop(),
@@ -67,33 +73,27 @@ class _IncomeScreenState extends State<IncomeScreen>
             unselectedLabelColor: textSecondary,
             indicatorColor: AppTheme.successColor,
             indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.label,
+            dividerColor: Colors.transparent,
             labelStyle: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
             tabs: const [
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.coins, size: 16),
-                text: 'Overview',
-              ),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.calendarWeek, size: 16),
-                text: 'Monthly',
-              ),
-              Tab(
-                icon: FaIcon(FontAwesomeIcons.chartLine, size: 16),
-                text: 'Yearly',
-              ),
+              Tab(text: 'Overview'),
+              Tab(text: 'Monthly'),
+              Tab(text: 'Yearly'),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           heroTag: 'add_income_fab',
-          onPressed: () {
-            showDialog(
+          onPressed: () async {
+            await showDialog(
               context: context,
               builder: (context) => const AddIncomeDialog(),
             );
+            await StartIOAds.showInterstitial();
           },
           backgroundColor: AppTheme.successColor,
           foregroundColor: Colors.white,
@@ -168,81 +168,92 @@ class _IncomeScreenState extends State<IncomeScreen>
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.successColor.withValues(alpha: 0.3),
+                    color: AppTheme.successColor.withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Positioned(
+                    right: -10,
+                    top: -10,
+                    child: Icon(
+                      Icons.account_balance_wallet,
+                      color: Colors.white.withOpacity(0.1),
+                      size: 80,
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Available Balance',
-                        style: GoogleFonts.inter(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            const FaIcon(
-                              FontAwesomeIcons.wallet,
-                              color: Colors.white,
-                              size: 14,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Available Balance',
+                            style: GoogleFonts.inter(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
                               'Overall',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₹${NumberFormat('#,##,##0.00', 'en_IN').format(availableBalance)}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -1,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '₹${availableBalance.toStringAsFixed(2)}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Divider(color: Colors.white.withValues(alpha: 0.3)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildBalanceDetail(
-                        'Total Income',
-                        totalIncome,
-                        FontAwesomeIcons.arrowTrendUp,
-                      ),
-                      _buildBalanceDetail(
-                        'Total Spent',
-                        totalExpenses,
-                        FontAwesomeIcons.arrowTrendDown,
+                      const SizedBox(height: 16),
+                      Divider(color: Colors.white.withOpacity(0.2)),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildBalanceDetail(
+                              'Income',
+                              totalIncome,
+                              FontAwesomeIcons.arrowTrendUp,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 30,
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                          Expanded(
+                            child: _buildBalanceDetail(
+                              'Spent',
+                              totalExpenses,
+                              FontAwesomeIcons.arrowTrendDown,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -257,113 +268,83 @@ class _IncomeScreenState extends State<IncomeScreen>
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.8),
-                    AppTheme.accentColor.withValues(alpha: 0.8),
+                    AppTheme.primaryColor.withOpacity(0.8),
+                    AppTheme.accentColor.withOpacity(0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Positioned(
+                    right: -10,
+                    bottom: -10,
+                    child: Icon(
+                      Icons.calendar_month,
+                      color: Colors.white.withOpacity(0.1),
+                      size: 60,
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'This Month',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            DateFormat('MMMM yyyy').format(DateTime.now()),
+                            style: GoogleFonts.inter(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       Text(
-                        'This Month',
+                        '₹${NumberFormat('#,##,##0.00', 'en_IN').format(monthlyAvailable)}',
                         style: GoogleFonts.inter(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        DateFormat('MMMM yyyy').format(DateTime.now()),
+                        'Net savings this month',
                         style: GoogleFonts.inter(
-                          color: Colors.white70,
-                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 13,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '₹${monthlyAvailable.toStringAsFixed(2)}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Available this month',
-                    style: GoogleFonts.inter(
-                      color: Colors.white60,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Income',
-                              style: GoogleFonts.inter(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${monthlyIncome.toStringAsFixed(0)}',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Expenses',
-                              style: GoogleFonts.inter(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${monthlyExpenses.toStringAsFixed(0)}',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          _buildMiniStat('Income', monthlyIncome),
+                          const SizedBox(width: 24),
+                          _buildMiniStat('Expenses', monthlyExpenses),
+                        ],
                       ),
                     ],
                   ),
@@ -473,7 +454,14 @@ class _IncomeScreenState extends State<IncomeScreen>
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => _tabController.animateTo(1),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RecentIncomeScreen(),
+                      ),
+                    );
+                  },
                   icon: const FaIcon(FontAwesomeIcons.arrowRight, size: 14),
                   label: const Text('View All'),
                 ),
@@ -821,20 +809,48 @@ class _IncomeScreenState extends State<IncomeScreen>
       children: [
         Row(
           children: [
-            FaIcon(icon, color: Colors.white70, size: 14),
+            FaIcon(icon, color: Colors.white.withOpacity(0.7), size: 12),
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+              style: GoogleFonts.inter(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          '₹${amount.toStringAsFixed(0)}',
+          '₹${NumberFormat('#,##,###', 'en_IN').format(amount)}',
           style: GoogleFonts.inter(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniStat(String label, double amount) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '₹${NumberFormat('#,##,###', 'en_IN').format(amount)}',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -853,35 +869,51 @@ class _IncomeScreenState extends State<IncomeScreen>
     Color textSecondary,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: color.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FaIcon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: FaIcon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 16),
           Text(
             value,
             style: GoogleFonts.inter(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: color,
+              color: textPrimary,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

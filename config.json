@@ -1,0 +1,38 @@
+{
+  "app": {
+    "name": "LifeSync",
+    "latest_version": "3.0.0",
+    "min_supported_version": "2.1.8",
+    "force_update": false,
+    "update_message": "A new version of LifeSync is available. Please update to continue.",
+    "download_url": "https://api.edizo.in/v1/storage/buckets/69acfcf60024404afaa4/files/69acfdcf002d08034108/download?project=69aa6e89000b08e67a76"
+  },
+  "server": {
+    "api_base_url": "https://api.edizo.in/v1",
+    "backup_api_url": "https://api.edizo.in/v1",
+    "timeout": 30
+  },
+  "features": {
+    "maintenance_mode": false,
+    "login_enabled": true,
+    "registration_enabled": true,
+    "ads_enabled": true
+  },
+  "ads": {
+    "startio_enabled": true,
+    "startio_app_id": "201957244"
+  },
+  "analytics": {
+    "enabled": true,
+    "analytics_id": "G-XXXXXXX"
+  },
+  "announcement": {
+    "enabled": false,
+    "title": "",
+    "message": ""
+  },
+  "support": {
+    "email": "support@edizo.in",
+    "website": "https://www.edizo.in"
+  }
+}

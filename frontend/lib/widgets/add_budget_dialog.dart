@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models/budget.dart';
 import '../providers/financial_data_manager.dart';
+import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
 
 class AddBudgetDialog extends StatefulWidget {
@@ -156,7 +157,7 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
               // Category
               _buildLabel('Category'),
               DropdownButtonFormField<String>(
-                value:
+                initialValue:
                     (_categoryController.text.isNotEmpty &&
                         _categories.contains(_categoryController.text))
                     ? _categoryController.text
@@ -213,7 +214,7 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
               // Period
               _buildLabel('Period'),
               DropdownButtonFormField<String>(
-                value: _period,
+                initialValue: _period,
                 dropdownColor: cardColor,
                 style: GoogleFonts.inter(color: textPrimary),
                 decoration: _inputDecoration(
@@ -382,7 +383,7 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
                         ),
                       ),
                       value: _alertEnabled,
-                      activeColor: AppTheme.primaryColor,
+                      activeThumbColor: AppTheme.primaryColor,
                       onChanged: (val) => setState(() => _alertEnabled = val),
                     ),
                     if (_alertEnabled) ...[
@@ -511,8 +512,13 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
 
   Future<void> _saveBudget() async {
     if (_formKey.currentState!.validate()) {
+      // Get current user ID from provider
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.currentUser?.id;
+
       final budget = Budget(
         id: widget.budget?.id,
+        userId: userId,
         category: _categoryController.text,
         allocatedAmount: double.parse(_amountController.text),
         spentAmount: widget.budget?.spentAmount ?? 0,
@@ -535,7 +541,10 @@ class _AddBudgetDialogState extends State<AddBudgetDialog> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Error saving budget: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }

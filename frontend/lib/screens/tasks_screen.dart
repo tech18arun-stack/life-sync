@@ -8,6 +8,7 @@ import '../models/task.dart';
 import '../utils/app_theme.dart';
 import '../widgets/task_item.dart';
 import '../widgets/add_task_dialog.dart';
+import '../services/startio_ads.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -22,6 +23,7 @@ class _TasksScreenState extends State<TasksScreen>
   String _searchQuery = '';
   String _selectedPriority = 'All';
   String _sortBy = 'Date';
+  final int _completedTaskCount = 0;
 
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _TasksScreenState extends State<TasksScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       appBar: AppBar(
         title: Text(
           'Tasks & To-Do',
@@ -160,11 +163,12 @@ class _TasksScreenState extends State<TasksScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_task_fab',
-        onPressed: () {
-          showDialog(
+        onPressed: () async {
+          await showDialog(
             context: context,
             builder: (context) => const AddTaskDialog(),
           );
+          await StartIOAds.showInterstitial();
         },
         backgroundColor: AppTheme.primaryColor,
         icon: const FaIcon(
@@ -309,6 +313,10 @@ class _TasksScreenState extends State<TasksScreen>
           children: [
             _buildCategoryHeader(category, categoryTasks.length),
             ...categoryTasks.map((task) => TaskItem(task: task)),
+            if (index == 0) ...[
+              const SizedBox(height: 16),
+              const Center(child: StartioMrec()),
+            ],
             const SizedBox(height: 16),
           ],
         );
@@ -576,10 +584,12 @@ class _TasksScreenState extends State<TasksScreen>
             child: Text('Cancel', style: GoogleFonts.inter()),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               for (var task in provider.completedTasks.toList()) {
                 provider.deleteTask(task.id ?? '');
               }
+              // Show high-revenue video ad after major action
+              await StartIOAds.showVideoInterstitial();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

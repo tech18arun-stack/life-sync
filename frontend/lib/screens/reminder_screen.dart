@@ -9,6 +9,7 @@ import '../models/reminder.dart';
 import '../models/expense.dart';
 import '../utils/app_theme.dart';
 import '../widgets/add_reminder_dialog.dart';
+import '../services/startio_ads.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
@@ -38,6 +39,7 @@ class _ReminderScreenState extends State<ReminderScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       body: Consumer<ReminderProvider>(
         builder: (context, provider, child) {
           return CustomScrollView(
@@ -833,11 +835,12 @@ class _ReminderScreenState extends State<ReminderScreen>
       ),
       child: FloatingActionButton.extended(
         heroTag: 'add_reminder_fab',
-        onPressed: () {
-          showDialog(
+        onPressed: () async {
+          await showDialog(
             context: context,
             builder: (context) => const AddReminderDialog(),
           );
+          await StartIOAds.showInterstitial();
         },
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1017,7 +1020,7 @@ class _ReminderScreenState extends State<ReminderScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${reminder.amount!.toStringAsFixed(2)}',
+                        reminder.amount!.toStringAsFixed(2),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -1132,6 +1135,8 @@ class _ReminderScreenState extends State<ReminderScreen>
       linkedExpenseId: expenseId,
     );
     provider.updateReminder(updatedReminder);
+    // Show ad after completion
+    StartIOAds.showInterstitial();
   }
 
   void _reworkReminder(
@@ -1189,6 +1194,8 @@ class _ReminderScreenState extends State<ReminderScreen>
       linkedExpenseId: null,
     );
     provider.updateReminder(updatedReminder);
+    // Show ad after rework
+    StartIOAds.showInterstitial();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

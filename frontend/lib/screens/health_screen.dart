@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'dart:ui';
 
 import '../providers/health_provider.dart';
 import '../models/health_record.dart';
@@ -13,6 +12,7 @@ import '../widgets/add_health_record_dialog.dart';
 import '../widgets/bmi_calculator_dialog.dart';
 import '../widgets/add_vitals_dialog.dart';
 import '../widgets/add_insurance_dialog.dart';
+import '../services/startio_ads.dart';
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key});
@@ -45,6 +45,7 @@ class _HealthScreenState extends State<HealthScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       floatingActionButton: _buildFab(context),
       body: NestedScrollView(
         controller: _scrollController,
@@ -179,29 +180,36 @@ class _HealthScreenState extends State<HealthScreen>
     );
   }
 
-  void _showAddRecordDialog(BuildContext context) {
-    showDialog(
+  void _showAddRecordDialog(BuildContext context) async {
+    await showDialog(
       context: context,
       builder: (context) => const AddHealthRecordDialog(),
     );
+    await StartIOAds.showInterstitial();
   }
 
-  void _showBMICalculatorDialog(BuildContext context) {
-    showDialog(
+  void _showBMICalculatorDialog(BuildContext context) async {
+    await showDialog(
       context: context,
       builder: (context) => const BMICalculatorDialog(),
     );
+    await StartIOAds.showInterstitial();
   }
 
-  void _showAddVitalsDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => const AddVitalsDialog());
+  void _showAddVitalsDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (context) => const AddVitalsDialog(),
+    );
+    await StartIOAds.showInterstitial();
   }
 
-  void _showAddInsuranceDialog(BuildContext context) {
-    showDialog(
+  void _showAddInsuranceDialog(BuildContext context) async {
+    await showDialog(
       context: context,
       builder: (context) => const AddInsuranceDialog(),
     );
+    await StartIOAds.showInterstitial();
   }
 
   // ---------------------------------------------------------------------------
@@ -223,6 +231,8 @@ class _HealthScreenState extends State<HealthScreen>
           _buildHealthScoreCard(context),
           const SizedBox(height: 24),
           _buildQuickStats(provider),
+          const SizedBox(height: 24),
+          const Center(child: StartioMrec()),
           const SizedBox(height: 30),
 
           // Upcoming Appointments
@@ -325,6 +335,12 @@ class _HealthScreenState extends State<HealthScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Summary Card
+                // The original content of _buildHealthScoreCard is kept,
+                // and the StartioMrec is already present in _buildOverviewTab.
+                // The provided snippet seems to be for a different context or a different file.
+                // Based on the instruction "Inject StartioMrec into the scrollable column after initial summary widgets",
+                // and the existing StartioMrec in _buildOverviewTab, no change is needed here.
                 Row(
                   children: [
                     Container(

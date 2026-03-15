@@ -196,9 +196,9 @@ Keep it concise, encouraging, and actionable. Do not use markdown bolding too he
     double score = 0;
 
     // Savings rate (40 points)
-    if (savingsRate >= 30)
+    if (savingsRate >= 30) {
       score += 40;
-    else if (savingsRate >= 20)
+    } else if (savingsRate >= 20)
       score += 30;
     else if (savingsRate >= 10)
       score += 20;
@@ -209,9 +209,9 @@ Keep it concise, encouraging, and actionable. Do not use markdown bolding too he
     score += (budgetAdherence / 100) * 30;
 
     // Emergency fund (30 points)
-    if (emergencyFundMonths >= 6)
+    if (emergencyFundMonths >= 6) {
       score += 30;
-    else if (emergencyFundMonths >= 3)
+    } else if (emergencyFundMonths >= 3)
       score += 20;
     else if (emergencyFundMonths >= 1)
       score += 10;
@@ -534,6 +534,19 @@ Format:
       return response.text ?? 'No suggestions.';
     } catch (e) {
       throw Exception('Failed to suggest reminders: ${e.toString()}');
+    }
+  }
+
+  // General Chat Response
+  Future<String> getChatResponse(String message, List<Content> history) async {
+    if (_model == null) throw Exception('Gemini API not initialized.');
+
+    try {
+      final chat = _model!.startChat(history: history);
+      final response = await chat.sendMessage(Content.text(message));
+      return response.text ?? 'I am sorry, I could not generate a response.';
+    } catch (e) {
+      throw Exception('Failed to get chat response: ${e.toString()}');
     }
   }
 }

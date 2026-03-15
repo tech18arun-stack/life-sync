@@ -1,0 +1,31 @@
+Running Gradle task 'assembleRelease'...                        
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:mergeReleaseNativeLibs'.
+> Could not resolve all files for configuration ':app:releaseRuntimeClasspath'.
+   > Failed to transform libs.jar to match attributes {artifactType=android-jni, org.gradle.libraryelements=jar, org.gradle.usage=java-runtime}.
+      > Execution failed for JetifyTransform: C:\Users\tech1\OneDrive\Documents\lifesync\life-sync\frontend\build\app\intermediates\flutter\release\libs.jar.
+         > Transform's input file does not exist: C:\Users\tech1\OneDrive\Documents\lifesync\life-sync\frontend\build\app\intermediates\flutter\release\libs.jar. (See https://issuetracker.google.com/issues/158753935)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4s
+Running Gradle task 'assembleRelease'...                            4.8s
+
+┌─ Flutter Fix ───────────────────────────────────────────────────────────────────────────────┐
+│ This issue appears to be https://github.com/flutter/flutter/issues/58247.                   │
+│ Fix this issue by adding the following to the file                                          │
+│ C:\Users\tech1\OneDrive\Documents\lifesync\life-sync\frontend\android\app\build.gradle.kts: │
+│ android {                                                                                   │
+│   lintOptions {                                                                             │
+│     checkReleaseBuilds false                                                                │
+│   }                                                                                         │
+│ }                                                                                           │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+Gradle task assembleRelease failed with exit code 1

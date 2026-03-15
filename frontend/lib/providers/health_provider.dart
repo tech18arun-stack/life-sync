@@ -1,9 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/health_record.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
+import '../services/storage_service.dart';
 
+/// Health Provider - State management for health records
+/// 
+/// Updated to use Appwrite backend via HealthRecordsRepository.
 class HealthProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final HealthRecordsRepository _repository = HealthRecordsRepository();
+  final StorageService _storageService = StorageService();
+  
   List<HealthRecord> _healthRecords = [];
   bool _isLoading = false;
   String? _error;
@@ -18,8 +24,7 @@ class HealthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getHealthRecords(); // Add userId filter if needed
-      _healthRecords = data.map((r) => HealthRecord.fromJson(r)).toList();
+      _healthRecords = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading health records: $e');
@@ -34,8 +39,7 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> addHealthRecord(HealthRecord record) async {
     try {
-      final response = await _supabase.createHealthRecord(record.toJson());
-      final newRecord = HealthRecord.fromJson(response);
+      final newRecord = await _repository.create(record);
       _healthRecords.add(newRecord);
       notifyListeners();
     } catch (e) {
@@ -46,11 +50,7 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> updateHealthRecord(HealthRecord record) async {
     try {
-      final response = await _supabase.updateHealthRecord(
-        record.id!,
-        record.toJson(),
-      );
-      final updatedRecord = HealthRecord.fromJson(response);
+      final updatedRecord = await _repository.update(record.id!, record);
       final index = _healthRecords.indexWhere((r) => r.id == record.id);
       if (index != -1) {
         _healthRecords[index] = updatedRecord;
@@ -64,11 +64,33 @@ class HealthProvider with ChangeNotifier {
 
   Future<void> deleteHealthRecord(String id) async {
     try {
-      await _supabase.deleteHealthRecord(id);
+      await _repository.delete(id);
       _healthRecords.removeWhere((r) => r.id == id);
       notifyListeners();
     } catch (e) {
       debugPrint('Error deleting health record: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload image for health record
+  Future<Map<String, dynamic>?> uploadHealthImage(String filePath) async {
+    try {
+      return await _storageService.uploadFile(filePath: filePath);
+    } catch (e) {
+      debugPrint('Error uploading health image: $e');
+      return null;
+    }
+  }
+
+  /// Add attachments to health record
+  Future<void> addAttachments(String recordId, List<String> attachmentUrls) async {
+    try {
+      await _repository.addAttachments(recordId, attachmentUrls);
+      // Refresh the record
+      await initialize();
+    } catch (e) {
+      debugPrint('Error adding attachments: $e');
       rethrow;
     }
   }

@@ -8,9 +8,11 @@ import '../providers/financial_data_manager.dart';
 import '../services/gemini_service.dart';
 import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
+import '../services/startio_ads.dart';
 
 enum TimePeriod { week, month, threeMonths, sixMonths, year, all }
 
@@ -252,15 +254,14 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(
-      context,
-    ); // Listen to theme changes if needed
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
       backgroundColor: isDark
           ? AppTheme.backgroundColor
           : const Color(0xFFF7F9FC),
+      bottomNavigationBar: const StartioBanner(),
       body: Consumer<FinancialDataManager>(
         builder: (context, financialManager, child) {
           final dateRange = _getDateRange();
@@ -283,7 +284,14 @@ class _ReportsScreenState extends State<ReportsScreen>
           );
           final categoryExpenses = _getCategoryExpenses(filteredExpenses);
 
-          if (totalIncome == 0 && totalExpenses == 0) {
+          // Get previous month balance (carry forward)
+          final previousMonthBalance = financialManager
+              .getPreviousMonthClosingBalance();
+          final hasHistoricalData = financialManager.hasAnyHistoricalData();
+          final hasCurrentMonthData = financialManager.hasCurrentMonthData();
+
+          // Show empty state only if there's NO historical data at all
+          if (!hasHistoricalData) {
             return CustomScrollView(
               slivers: [
                 _buildAnimatedAppBar(context),
@@ -292,52 +300,131 @@ class _ReportsScreenState extends State<ReportsScreen>
             );
           }
 
+          // If no current month data but has historical data, show previous month summary
+          if (!hasCurrentMonthData) {
+            return CustomScrollView(
+              slivers: [
+                _buildAnimatedAppBar(context),
+                SliverToBoxAdapter(
+                  child: ResponsiveWrapper(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildPreviousMonthSummary(context, financialManager),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 40,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No transactions for this month yet',
+                                    style: GoogleFonts.inter(
+                                      fontSize: Responsive.getFontSize(
+                                        context,
+                                        FontSizeType.title,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Your previous month\'s balance of ₹${previousMonthBalance.toStringAsFixed(0)} will be carried forward as opening balance.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: Responsive.getFontSize(
+                                        context,
+                                        FontSizeType.body,
+                                      ),
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
           return CustomScrollView(
             slivers: [
               _buildAnimatedAppBar(context),
               SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 24,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTimePeriodFilter(),
-                        const SizedBox(height: 24),
-                        _buildSummaryCards(totalIncome, totalExpenses),
-                        const SizedBox(height: 24),
-                        _buildFinancialHealthScore(financialManager),
-                        const SizedBox(height: 24),
-                        _buildSectionHeader('Income vs Expenses'),
-                        const SizedBox(height: 16),
-                        _buildIncomeExpenseChart(totalIncome, totalExpenses),
-                        const SizedBox(height: 24),
-                        if (categoryExpenses.isNotEmpty) ...[
-                          _buildSectionHeader('Expense Breakdown'),
+                child: ResponsiveWrapper(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.getHorizontalPadding(context),
+                        vertical: 24,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTimePeriodFilter(context),
+                          const SizedBox(height: 24),
+                          _buildSummaryCards(
+                            context,
+                            totalIncome,
+                            totalExpenses,
+                            previousMonthBalance,
+                          ),
+                          const SizedBox(height: 24),
+                          _buildFinancialHealthScore(financialManager, context),
+                          const SizedBox(height: 24),
+                          _buildSectionHeader('Income vs Expenses', context),
                           const SizedBox(height: 16),
-                          _buildCategoryPieChart(
-                            categoryExpenses,
+                          _buildIncomeExpenseChart(
+                            context,
+                            totalIncome,
                             totalExpenses,
                           ),
-                          const SizedBox(height: 16),
-                          _buildCategoryLegend(categoryExpenses, totalExpenses),
                           const SizedBox(height: 24),
-                        ],
-                        if (categoryExpenses.isNotEmpty) ...[
-                          _buildSectionHeader('Top Spending Categories'),
-                          const SizedBox(height: 16),
-                          _buildTopCategories(categoryExpenses),
+                          const Center(child: StartioMrec()),
                           const SizedBox(height: 24),
+                          if (categoryExpenses.isNotEmpty) ...[
+                            _buildSectionHeader('Expense Breakdown', context),
+                            const SizedBox(height: 16),
+                            _buildCategoryPieChart(
+                              categoryExpenses,
+                              totalExpenses,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildCategoryLegend(
+                              context,
+                              categoryExpenses,
+                              totalExpenses,
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                          if (categoryExpenses.isNotEmpty) ...[
+                            _buildSectionHeader(
+                              'Top Spending Categories',
+                              context,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTopCategories(context, categoryExpenses),
+                            const SizedBox(height: 24),
+                          ],
+                          _buildSectionHeader('Daily Spending Trend', context),
+                          const SizedBox(height: 16),
+                          _buildDailySpendingChart(context, financialManager),
+                          const SizedBox(height: 100),
                         ],
-                        _buildSectionHeader('Daily Spending Trend'),
-                        const SizedBox(height: 16),
-                        _buildDailySpendingChart(financialManager),
-                        const SizedBox(height: 100),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -372,6 +459,155 @@ class _ReportsScreenState extends State<ReportsScreen>
           Text(
             'Start adding income and expenses to see reports',
             style: GoogleFonts.inter(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviousMonthSummary(
+    BuildContext context,
+    FinancialDataManager manager,
+  ) {
+    final previousMonthBalance = manager.getPreviousMonthClosingBalance();
+    final previousMonthIncome = manager.getPreviousMonthIncome();
+    final previousMonthExpenses = manager.getPreviousMonthExpenses();
+    final netBalance = previousMonthIncome - previousMonthExpenses;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppTheme.cardShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today,
+                size: 18,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Previous Month Summary',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Income',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹${previousMonthIncome.toStringAsFixed(0)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.successColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Expenses',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹${previousMonthExpenses.toStringAsFixed(0)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.errorColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Net',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₹${netBalance.toStringAsFixed(0)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: netBalance >= 0
+                            ? AppTheme.successColor
+                            : AppTheme.errorColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Closing Balance',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '₹${previousMonthBalance.toStringAsFixed(0)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: previousMonthBalance >= 0
+                        ? AppTheme.primaryColor
+                        : AppTheme.errorColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -417,32 +653,31 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildTimePeriodFilter() {
+  Widget _buildTimePeriodFilter(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(
+      child: Wrap(
+        spacing: 8,
         children: TimePeriod.values.map((period) {
           final isSelected = _selectedPeriod == period;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              selected: isSelected,
-              label: Text(_getPeriodLabel(period)),
-              onSelected: (selected) {
-                if (selected) setState(() => _selectedPeriod = period);
-              },
-              selectedColor: AppTheme.primaryColor,
-              backgroundColor: Theme.of(context).cardColor,
-              labelStyle: GoogleFonts.inter(
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide.none,
-              ),
-              elevation: isSelected ? 4 : 0,
+          return ChoiceChip(
+            selected: isSelected,
+            label: Text(_getPeriodLabel(period)),
+            onSelected: (selected) {
+              if (selected) setState(() => _selectedPeriod = period);
+            },
+            selectedColor: AppTheme.primaryColor,
+            backgroundColor: Theme.of(context).cardColor,
+            labelStyle: GoogleFonts.inter(
+              color: isSelected ? Colors.white : AppTheme.textSecondary,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              fontSize: Responsive.getFontSize(context, FontSizeType.body),
             ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide.none,
+            ),
+            elevation: isSelected ? 4 : 0,
           );
         }).toList(),
       ),
@@ -466,48 +701,123 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
-  Widget _buildSummaryCards(double totalIncome, double totalExpenses) {
-    final balance = totalIncome - totalExpenses;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [AppTheme.cardShadow],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildStatItem(
-            'Income',
-            totalIncome,
-            AppTheme.successColor,
-            Icons.trending_up,
+  Widget _buildSummaryCards(
+    BuildContext context,
+    double totalIncome,
+    double totalExpenses,
+    double previousMonthBalance,
+  ) {
+    // Calculate current balance including previous month's balance
+    final openingBalance = previousMonthBalance;
+    final currentPeriodNet = totalIncome - totalExpenses;
+    final closingBalance = openingBalance + currentPeriodNet;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 600;
+
+        return Container(
+          padding: EdgeInsets.all(Responsive.isDesktop(context) ? 24 : 20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [AppTheme.cardShadow],
           ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.grey.withValues(alpha: 0.2),
-          ),
-          _buildStatItem(
-            'Expenses',
-            totalExpenses,
-            AppTheme.errorColor,
-            Icons.trending_down,
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.grey.withValues(alpha: 0.2),
-          ),
-          _buildStatItem(
-            'Balance',
-            balance,
-            balance >= 0 ? AppTheme.primaryColor : AppTheme.errorColor,
-            Icons.account_balance_wallet,
-          ),
-        ],
-      ),
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    _buildStatItem(
+                      'Opening Balance',
+                      openingBalance,
+                      AppTheme.textSecondary,
+                      Icons.history,
+                      context,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStatItem(
+                      'Income',
+                      totalIncome,
+                      AppTheme.successColor,
+                      Icons.trending_up,
+                      context,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStatItem(
+                      'Expenses',
+                      totalExpenses,
+                      AppTheme.errorColor,
+                      Icons.trending_down,
+                      context,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStatItem(
+                      'Closing Balance',
+                      closingBalance,
+                      closingBalance >= 0
+                          ? AppTheme.primaryColor
+                          : AppTheme.errorColor,
+                      Icons.account_balance_wallet,
+                      context,
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatItem(
+                          'Opening Balance',
+                          openingBalance,
+                          AppTheme.textSecondary,
+                          Icons.history,
+                          context,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.grey.withValues(alpha: 0.2),
+                        ),
+                        _buildStatItem(
+                          'Income',
+                          totalIncome,
+                          AppTheme.successColor,
+                          Icons.trending_up,
+                          context,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatItem(
+                          'Expenses',
+                          totalExpenses,
+                          AppTheme.errorColor,
+                          Icons.trending_down,
+                          context,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.grey.withValues(alpha: 0.2),
+                        ),
+                        _buildStatItem(
+                          'Closing Balance',
+                          closingBalance,
+                          closingBalance >= 0
+                              ? AppTheme.primaryColor
+                              : AppTheme.errorColor,
+                          Icons.account_balance_wallet,
+                          context,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -516,18 +826,19 @@ class _ReportsScreenState extends State<ReportsScreen>
     double amount,
     Color color,
     IconData icon,
+    BuildContext context,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 14, color: color),
+            Icon(icon, size: Responsive.getIconSize(context) - 4, color: color),
             const SizedBox(width: 4),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: Responsive.getFontSize(context, FontSizeType.small),
                 color: AppTheme.textSecondary,
               ),
             ),
@@ -537,7 +848,7 @@ class _ReportsScreenState extends State<ReportsScreen>
         Text(
           '₹${amount.abs().toInt()}',
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -546,7 +857,10 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildFinancialHealthScore(FinancialDataManager manager) {
+  Widget _buildFinancialHealthScore(
+    FinancialDataManager manager,
+    BuildContext context,
+  ) {
     final score = manager.getFinancialHealthScore();
     final scoreColor = score >= 70
         ? AppTheme.successColor
@@ -555,7 +869,7 @@ class _ReportsScreenState extends State<ReportsScreen>
         : AppTheme.errorColor;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(Responsive.isDesktop(context) ? 28 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -568,45 +882,48 @@ class _ReportsScreenState extends State<ReportsScreen>
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: scoreColor.withValues(alpha: 0.3)),
       ),
-      child: Row(
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: CircularProgressIndicator(
-                  value: score / 100,
-                  strokeWidth: 8,
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  valueColor: AlwaysStoppedAnimation(scoreColor),
-                  strokeCap: StrokeCap.round,
-                ),
-              ),
-              Text(
-                '${score.toInt()}',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: scoreColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 600) {
+            // Mobile layout
+            return Column(
               children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: CircularProgressIndicator(
+                        value: score / 100,
+                        strokeWidth: 8,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        valueColor: AlwaysStoppedAnimation(scoreColor),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Text(
+                      '${score.toInt()}',
+                      style: GoogleFonts.inter(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: scoreColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Financial Health',
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.title,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   score >= 70
                       ? 'Excellent work! Keep maintaining your habits.'
@@ -614,23 +931,106 @@ class _ReportsScreenState extends State<ReportsScreen>
                       ? 'Good, but there\'s room for improvement.'
                       : 'Needs attention. Check your spending.',
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
                     color: AppTheme.textSecondary,
                     height: 1.4,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
-            ),
-          ),
-        ],
+            );
+          } else {
+            // Tablet/Desktop layout
+            return Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: CircularProgressIndicator(
+                        value: score / 100,
+                        strokeWidth: 8,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        valueColor: AlwaysStoppedAnimation(scoreColor),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Text(
+                      '${score.toInt()}',
+                      style: GoogleFonts.inter(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: scoreColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Financial Health',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.title,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        score >= 70
+                            ? 'Excellent work! Keep maintaining your habits.'
+                            : score >= 40
+                            ? 'Good, but there\'s room for improvement.'
+                            : 'Needs attention. Check your spending.',
+                        style: GoogleFonts.inter(
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.body,
+                          ),
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
+        },
       ),
     );
   }
 
-  Widget _buildIncomeExpenseChart(double totalIncome, double totalExpenses) {
+  Widget _buildSectionHeader(String title, BuildContext context) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: Responsive.getFontSize(context, FontSizeType.title),
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+      ),
+    );
+  }
+
+  Widget _buildIncomeExpenseChart(
+    BuildContext context,
+    double totalIncome,
+    double totalExpenses,
+  ) {
     return Container(
-      height: 220,
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      height: Responsive.isDesktop(context) ? 260 : 220,
+      padding: EdgeInsets.all(Responsive.isDesktop(context) ? 20 : 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -650,6 +1050,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                   GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
                     color: rod.color,
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
                   ),
                 );
               },
@@ -666,7 +1070,10 @@ class _ReportsScreenState extends State<ReportsScreen>
                     child: Text(
                       value == 0 ? 'Income' : 'Expenses',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: Responsive.getFontSize(
+                          context,
+                          FontSizeType.body,
+                        ),
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textSecondary,
                       ),
@@ -791,6 +1198,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildCategoryLegend(
+    BuildContext context,
     Map<String, double> categoryExpenses,
     double totalExpenses,
   ) {
@@ -799,7 +1207,9 @@ class _ReportsScreenState extends State<ReportsScreen>
         final color = AppTheme.getCategoryColor(entry.key);
         final percentage = (entry.value / totalExpenses * 100);
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(
+            bottom: Responsive.isDesktop(context) ? 12 : 8,
+          ),
           child: Row(
             children: [
               Container(
@@ -811,20 +1221,34 @@ class _ReportsScreenState extends State<ReportsScreen>
               Expanded(
                 child: Text(
                   entry.key,
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '${percentage.toStringAsFixed(1)}%',
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textSecondary,
+                  fontSize: Responsive.getFontSize(context, FontSizeType.body),
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 '₹${entry.value.toStringAsFixed(0)}',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: Responsive.getFontSize(
+                    context,
+                    FontSizeType.subtitle,
+                  ),
+                ),
               ),
             ],
           ),
@@ -833,7 +1257,10 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildTopCategories(Map<String, double> categoryExpenses) {
+  Widget _buildTopCategories(
+    BuildContext context,
+    Map<String, double> categoryExpenses,
+  ) {
     final sorted = categoryExpenses.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final top5 = sorted.take(5).toList();
@@ -845,7 +1272,9 @@ class _ReportsScreenState extends State<ReportsScreen>
         final percentage = (entry.value / maxValue);
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.only(
+            bottom: Responsive.isDesktop(context) ? 20 : 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -857,18 +1286,30 @@ class _ReportsScreenState extends State<ReportsScreen>
                       Icon(
                         AppTheme.getCategoryIcon(entry.key),
                         color: color,
-                        size: 18,
+                        size: Responsive.getIconSize(context),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         entry.key,
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w500,
+                          fontSize: Responsive.getFontSize(
+                            context,
+                            FontSizeType.body,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   Text(
                     '₹${entry.value.toStringAsFixed(0)}',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: Responsive.getFontSize(
+                        context,
+                        FontSizeType.subtitle,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -889,11 +1330,14 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Widget _buildDailySpendingChart(FinancialDataManager manager) {
+  Widget _buildDailySpendingChart(
+    BuildContext context,
+    FinancialDataManager manager,
+  ) {
     final dailyData = manager.getDailySpending(days: 30);
     return Container(
-      height: 220,
-      padding: const EdgeInsets.all(20),
+      height: Responsive.isDesktop(context) ? 260 : 220,
+      padding: EdgeInsets.all(Responsive.isDesktop(context) ? 24 : 20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -938,17 +1382,6 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).textTheme.bodyLarge?.color,
       ),
     );
   }

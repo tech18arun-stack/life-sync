@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../models/income.dart';
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
+// import '../utils/responsive.dart'; // TODO: Add responsive updates
 
 class AddIncomeDialog extends StatefulWidget {
   final Income? income;
@@ -190,8 +191,9 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                   textSecondary,
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Please enter an amount';
+                  }
                   if (double.tryParse(value) == null) return 'Invalid number';
                   return null;
                 },
@@ -201,7 +203,7 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
               // Source
               _buildLabel('Source'),
               DropdownButtonFormField<String>(
-                value: _selectedSource,
+                initialValue: _selectedSource,
                 dropdownColor: cardColor,
                 style: GoogleFonts.inter(color: textPrimary),
                 decoration: _inputDecoration(
@@ -220,7 +222,7 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
               // Payment Method
               _buildLabel('Received Via'),
               DropdownButtonFormField<String>(
-                value: _selectedPaymentMethod,
+                initialValue: _selectedPaymentMethod,
                 dropdownColor: cardColor,
                 style: GoogleFonts.inter(color: textPrimary),
                 decoration: _inputDecoration(
@@ -294,14 +296,15 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                     ),
                   ),
                   value: _isRecurring,
-                  activeColor: AppTheme.successColor,
+                  activeThumbColor: AppTheme.successColor,
                   onChanged: (val) {
                     setState(() {
                       _isRecurring = val;
-                      if (!_isRecurring)
+                      if (!_isRecurring) {
                         _recurringType = null;
-                      else
+                      } else {
                         _recurringType = 'monthly'; // default
+                      }
                     });
                   },
                 ),
@@ -310,7 +313,7 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
                 const SizedBox(height: 12),
                 _buildLabel('Frequency'),
                 DropdownButtonFormField<String>(
-                  value: _recurringType ?? 'monthly',
+                  initialValue: _recurringType ?? 'monthly',
                   dropdownColor: cardColor,
                   style: GoogleFonts.inter(color: textPrimary),
                   decoration: _inputDecoration(
@@ -451,32 +454,35 @@ class _AddIncomeDialogState extends State<AddIncomeDialog> {
       try {
         if (widget.income == null) {
           await provider.addIncome(income);
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Income added!'),
                 backgroundColor: AppTheme.successColor,
               ),
             );
+          }
         } else {
           await provider.updateIncome(income);
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Income updated!'),
                 backgroundColor: AppTheme.successColor,
               ),
             );
+          }
         }
         if (mounted) Navigator.pop(context);
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: $e'),
               backgroundColor: AppTheme.errorColor,
             ),
           );
+        }
       }
     }
   }

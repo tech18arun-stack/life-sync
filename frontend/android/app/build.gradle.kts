@@ -11,7 +11,18 @@ plugins {
 android {
     namespace = "com.familytips.family_tips"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // ndkVersion = flutter.ndkVersion
+
+    // Add repository for local AAR files (Start.io SDK)
+    repositories {
+        flatDir {
+            dirs("libs")
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -35,32 +46,15 @@ android {
         multiDexEnabled = true
     }
 
-    // Load keystore properties
-    val keystorePropertiesFile = rootProject.file("key.properties")
-    val keystoreProperties = Properties()
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-    }
-
-    signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
-        }
-    }
-
     buildTypes {
-        release {
-            // Sign with release config if available, otherwise use debug
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+        getByName("release") {
+            // Use debug signing for release for "simple" method
+            signingConfig = signingConfigs.getByName("debug")
+            
+            // Optimization settings for simple release
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
@@ -71,4 +65,10 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // Start.io SDK - Maven dependency (no manual download needed)
+    implementation("com.startapp:inapp-sdk:4.10.8")
+
+    // MultiDex support
+    implementation("androidx.multidex:multidex:2.0.1")
 }

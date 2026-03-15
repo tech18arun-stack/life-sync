@@ -172,7 +172,7 @@ class _AddReminderDialogState extends State<AddReminderDialog> {
 
                       _buildLabel('Type'),
                       DropdownButtonFormField<String>(
-                        value: _types.contains(_type) ? _type : 'Custom',
+                        initialValue: _types.contains(_type) ? _type : 'Custom',
                         dropdownColor: cardColor,
                         style: GoogleFonts.inter(color: textPrimary),
                         decoration: _inputDecoration(
@@ -340,7 +340,7 @@ class _AddReminderDialogState extends State<AddReminderDialog> {
                             if (_isRecurring) ...[
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                value: _recurringType,
+                                initialValue: _recurringType,
                                 dropdownColor: cardColor,
                                 style: GoogleFonts.inter(color: textPrimary),
                                 decoration: _inputDecoration(

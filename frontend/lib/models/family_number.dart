@@ -33,19 +33,24 @@ class FamilyNumber {
       id: json['_id'] ?? json['id'],
       userId: json['user_id'] ?? json['userId'],
       name: json['name'] ?? '',
-      phone: json['phone'] ?? '',
+      phone: json['phone_number'] ?? json['phone'] ?? '', // Fixed key
       relation: json['relation'],
       category: json['category'] ?? 'Family',
-      isEmergency: json['isEmergency'] ?? false,
-      isPrimary: json['isPrimary'] ?? false,
+      isEmergency:
+          json['is_emergency'] ?? json['isEmergency'] ?? false, // Fixed key
+      isPrimary: json['is_primary'] ?? json['isPrimary'] ?? false, // Fixed key
       notes: json['notes'],
       avatarColor: json['avatarColor'] ?? '#6C63FF',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : (json['createdAt'] != null
+                ? DateTime.parse(json['createdAt'])
+                : null),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : (json['updatedAt'] != null
+                ? DateTime.parse(json['updatedAt'])
+                : null),
     );
   }
 
@@ -54,13 +59,12 @@ class FamilyNumber {
       if (id != null) '_id': id,
       if (userId != null) 'user_id': userId,
       'name': name,
-      'phone': phone,
-      if (relation != null) 'relation': relation,
+      'phone_number': phone, // Fixed key
       'category': category,
-      'isEmergency': isEmergency,
-      'isPrimary': isPrimary,
+      'is_emergency': isEmergency, // Fixed key
+      'is_primary': isPrimary, // Fixed key
       if (notes != null) 'notes': notes,
-      if (avatarColor != null) 'avatarColor': avatarColor,
+      // Removed relation, avatarColor (not in schema)
     };
   }
 

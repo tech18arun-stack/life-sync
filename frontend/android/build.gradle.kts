@@ -2,6 +2,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://repo.start.io/artifactory/publisher-sdk") }
     }
 }
 

@@ -4,13 +4,19 @@ import '../models/income.dart';
 import '../models/budget.dart';
 import '../models/reminder.dart';
 import '../models/task.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 import '../services/notification_service.dart';
 
 /// Centralized Financial Data Manager
-/// Manages all financial data (income, expenses, budgets, reminders, tasks) via Supabase
+/// Manages all financial data (income, expenses, budgets, reminders, tasks) via Appwrite
+///
+/// Updated to use Appwrite backend via repositories.
 class FinancialDataManager with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final ExpensesRepository _expensesRepo = ExpensesRepository();
+  final IncomesRepository _incomesRepo = IncomesRepository();
+  final BudgetsRepository _budgetsRepo = BudgetsRepository();
+  final RemindersRepository _remindersRepo = RemindersRepository();
+  final TasksRepository _tasksRepo = TasksRepository();
 
   // Lists
   List<Expense> _expenses = [];
@@ -21,6 +27,7 @@ class FinancialDataManager with ChangeNotifier {
 
   // Loading states
   bool _isLoading = false;
+  bool _isInitialized = false;
   String? _error;
 
   // Getters
@@ -30,9 +37,10 @@ class FinancialDataManager with ChangeNotifier {
   List<Reminder> get reminders => _reminders;
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
   String? get error => _error;
 
-  // Initialization - Load data from Supabase
+  // Initialization - Load data from Appwrite
   Future<void> initialize() async {
     _isLoading = true;
     _error = null;
@@ -52,6 +60,19 @@ class FinancialDataManager with ChangeNotifier {
     }
 
     _isLoading = false;
+    _isInitialized = true;
+    notifyListeners();
+  }
+
+  // Clear data when user logs out
+  void clear() {
+    _expenses.clear();
+    _incomes.clear();
+    _budgets.clear();
+    _reminders.clear();
+    _tasks.clear();
+    _isInitialized = false;
+    _error = null;
     notifyListeners();
   }
 
@@ -62,8 +83,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadExpenses() async {
     try {
-      final data = await _supabase.getExpenses(); // Add userId filter if needed
-      _expenses = data.map((e) => Expense.fromJson(e)).toList();
+      _expenses = await _expensesRepo.getAll(filters: null);
     } catch (e) {
       debugPrint('Error loading expenses: $e');
     }
@@ -71,8 +91,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadIncomes() async {
     try {
-      final data = await _supabase.getIncomes(); // Add userId filter if needed
-      _incomes = data.map((i) => Income.fromJson(i)).toList();
+      _incomes = await _incomesRepo.getAll(filters: null);
     } catch (e) {
       debugPrint('Error loading incomes: $e');
     }
@@ -80,8 +99,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadBudgets() async {
     try {
-      final data = await _supabase.getBudgets(); // Add userId filter if needed
-      _budgets = data.map((b) => Budget.fromJson(b)).toList();
+      _budgets = await _budgetsRepo.getAll(filters: null);
     } catch (e) {
       debugPrint('Error loading budgets: $e');
     }
@@ -89,8 +107,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadReminders() async {
     try {
-      final data = await _supabase.getReminders(); // Add userId filter if needed
-      _reminders = data.map((r) => Reminder.fromJson(r)).toList();
+      _reminders = await _remindersRepo.getAll(filters: null);
     } catch (e) {
       debugPrint('Error loading reminders: $e');
     }
@@ -98,8 +115,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> _loadTasks() async {
     try {
-      final data = await _supabase.getTasks(); // Add userId filter if needed
-      _tasks = data.map((t) => Task.fromJson(t)).toList();
+      _tasks = await _tasksRepo.getAll(filters: null);
     } catch (e) {
       debugPrint('Error loading tasks: $e');
     }
@@ -109,8 +125,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addIncome(Income income) async {
     try {
-      final response = await _supabase.createIncome(income.toJson());
-      final newIncome = Income.fromJson(response);
+      final newIncome = await _incomesRepo.create(income);
       _incomes.add(newIncome);
       notifyListeners();
     } catch (e) {
@@ -121,8 +136,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateIncome(Income income) async {
     try {
-      final response = await _supabase.updateIncome(income.id!, income.toJson());
-      final updatedIncome = Income.fromJson(response);
+      final updatedIncome = await _incomesRepo.update(income.id!, income);
       final index = _incomes.indexWhere((i) => i.id == income.id);
       if (index != -1) {
         _incomes[index] = updatedIncome;
@@ -136,7 +150,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteIncome(String id) async {
     try {
-      await _supabase.deleteIncome(id);
+      await _incomesRepo.delete(id);
       _incomes.removeWhere((i) => i.id == id);
       notifyListeners();
     } catch (e) {
@@ -191,8 +205,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addExpense(Expense expense) async {
     try {
-      final response = await _supabase.createExpense(expense.toJson());
-      final newExpense = Expense.fromJson(response);
+      final newExpense = await _expensesRepo.create(expense);
       _expenses.add(newExpense);
 
       // Update budget spending
@@ -212,8 +225,7 @@ class FinancialDataManager with ChangeNotifier {
       // Reverse old expense effect on budget
       await _updateBudgetSpending(oldExpense.category, -oldExpense.amount);
 
-      final response = await _supabase.updateExpense(expense.id!, expense.toJson());
-      final updatedExpense = Expense.fromJson(response);
+      final updatedExpense = await _expensesRepo.update(expense.id!, expense);
 
       // Apply new expense effect on budget
       await _updateBudgetSpending(expense.category, expense.amount);
@@ -236,7 +248,7 @@ class FinancialDataManager with ChangeNotifier {
       // Reverse expense effect on budget
       await _updateBudgetSpending(expense.category, -expense.amount);
 
-      await _supabase.deleteExpense(id);
+      await _expensesRepo.delete(id);
       _expenses.removeWhere((e) => e.id == id);
       notifyListeners();
     } catch (e) {
@@ -290,8 +302,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addReminder(Reminder reminder) async {
     try {
-      final response = await _supabase.createReminder(reminder.toJson());
-      final newReminder = Reminder.fromJson(response);
+      final newReminder = await _remindersRepo.create(reminder);
       _reminders.add(newReminder);
       NotificationService().scheduleReminderNotification(newReminder);
       notifyListeners();
@@ -303,11 +314,10 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateReminder(Reminder reminder) async {
     try {
-      final response = await _supabase.updateReminder(
+      final updatedReminder = await _remindersRepo.update(
         reminder.id!,
-        reminder.toJson(),
+        reminder,
       );
-      final updatedReminder = Reminder.fromJson(response);
       final index = _reminders.indexWhere((r) => r.id == reminder.id);
       if (index != -1) {
         _reminders[index] = updatedReminder;
@@ -322,7 +332,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteReminder(String id) async {
     try {
-      await _supabase.deleteReminder(id);
+      await _remindersRepo.delete(id);
       NotificationService().cancelNotification(id.hashCode);
       _reminders.removeWhere((r) => r.id == id);
       notifyListeners();
@@ -380,8 +390,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addTask(Task task) async {
     try {
-      final response = await _supabase.createTask(task.toJson());
-      final newTask = Task.fromJson(response);
+      final newTask = await _tasksRepo.create(task);
       _tasks.add(newTask);
       NotificationService().scheduleTaskNotification(newTask);
       notifyListeners();
@@ -393,11 +402,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateTask(Task task) async {
     try {
-      final response = await _supabase.updateTask(
-        task.id!,
-        task.toJson(),
-      );
-      final updatedTask = Task.fromJson(response);
+      final updatedTask = await _tasksRepo.update(task.id!, task);
       final index = _tasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
         _tasks[index] = updatedTask;
@@ -413,7 +418,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteTask(String id) async {
     try {
-      await _supabase.deleteTask(id);
+      await _tasksRepo.delete(id);
       NotificationService().cancelTaskNotifications(id);
       _tasks.removeWhere((t) => t.id == id);
       notifyListeners();
@@ -462,8 +467,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> addBudget(Budget budget) async {
     try {
-      final response = await _supabase.createBudget(budget.toJson());
-      final newBudget = Budget.fromJson(response);
+      final newBudget = await _budgetsRepo.create(budget);
       _budgets.add(newBudget);
       notifyListeners();
     } catch (e) {
@@ -474,8 +478,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> updateBudget(Budget budget) async {
     try {
-      final response = await _supabase.updateBudget(budget.id!, budget.toJson());
-      final updatedBudget = Budget.fromJson(response);
+      final updatedBudget = await _budgetsRepo.update(budget.id!, budget);
       final index = _budgets.indexWhere((b) => b.id == budget.id);
       if (index != -1) {
         _budgets[index] = updatedBudget;
@@ -489,7 +492,7 @@ class FinancialDataManager with ChangeNotifier {
 
   Future<void> deleteBudget(String id) async {
     try {
-      await _supabase.deleteBudget(id);
+      await _budgetsRepo.delete(id);
       _budgets.removeWhere((b) => b.id == id);
       notifyListeners();
     } catch (e) {
@@ -558,8 +561,7 @@ class FinancialDataManager with ChangeNotifier {
         budget.spentAmount += amount;
 
         // Update the budget in the database
-        final updatedBudgetData = budget.toJson();
-        await _supabase.updateBudget(budget.id!, updatedBudgetData);
+        await _budgetsRepo.update(budget.id!, budget);
 
         notifyListeners();
 
@@ -691,5 +693,87 @@ class FinancialDataManager with ChangeNotifier {
       'monthlyAvailable': getMonthlyAvailableBalance(),
       'savingsRate': getSavingsPercentage(),
     };
+  }
+
+  // ======================== PREVIOUS MONTH BALANCE (Carry Forward) ========================
+
+  /// Get the closing balance from the previous month
+  /// This is used as the opening balance for the current month
+  double getPreviousMonthClosingBalance() {
+    final now = DateTime.now();
+    final previousMonth = DateTime(now.year, now.month - 1, 1);
+    final endOfPreviousMonth = DateTime(
+      previousMonth.year,
+      previousMonth.month + 1,
+      0,
+    );
+
+    // Get all income up to end of previous month
+    final totalIncomeUpToPreviousMonth = _incomes
+        .where(
+          (i) =>
+              i.date.isBefore(endOfPreviousMonth.add(const Duration(days: 1))),
+        )
+        .fold(0.0, (sum, income) => sum + income.amount);
+
+    // Get all expenses up to end of previous month
+    final totalExpensesUpToPreviousMonth = _expenses
+        .where(
+          (e) =>
+              e.date.isBefore(endOfPreviousMonth.add(const Duration(days: 1))),
+        )
+        .fold(0.0, (sum, expense) => sum + expense.amount);
+
+    return totalIncomeUpToPreviousMonth - totalExpensesUpToPreviousMonth;
+  }
+
+  /// Get the opening balance for the current month (same as previous month's closing)
+  double getCurrentMonthOpeningBalance() {
+    return getPreviousMonthClosingBalance();
+  }
+
+  /// Get total income for the previous month
+  double getPreviousMonthIncome() {
+    final now = DateTime.now();
+    final previousMonth = DateTime(now.year, now.month - 1);
+    return getIncomeForMonth(previousMonth);
+  }
+
+  /// Get total expenses for the previous month
+  double getPreviousMonthExpenses() {
+    final now = DateTime.now();
+    final previousMonth = DateTime(now.year, now.month - 1);
+    return getExpensesForMonth(previousMonth);
+  }
+
+  /// Get the previous month's net balance (income - expenses)
+  double getPreviousMonthNetBalance() {
+    return getPreviousMonthIncome() - getPreviousMonthExpenses();
+  }
+
+  /// Check if there's any financial data in the current month
+  bool hasCurrentMonthData() {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    final hasIncome = _incomes.any(
+      (i) =>
+          i.date.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
+          i.date.isBefore(endOfMonth.add(const Duration(days: 1))),
+    );
+
+    final hasExpenses = _expenses.any(
+      (e) =>
+          e.date.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
+          e.date.isBefore(endOfMonth.add(const Duration(days: 1))),
+    );
+
+    return hasIncome || hasExpenses;
+  }
+
+  /// Check if there's any historical financial data (any month)
+  bool hasAnyHistoricalData() {
+    return _incomes.isNotEmpty || _expenses.isNotEmpty;
   }
 }

@@ -43,11 +43,11 @@ class Expense {
       date: json['date'] != null
           ? DateTime.parse(json['date'])
           : DateTime.now(),
-      paymentMethod: json['paymentMethod'],
+      paymentMethod: json['payment_method'] ?? json['paymentMethod'],
       notes: json['notes'],
-      familyMemberId: json['familyMemberId'],
-      contactName: json['contactName'],
-      phoneNumber: json['phoneNumber'],
+      familyMemberId: json['family_member_id'] ?? json['familyMemberId'],
+      contactName: json['contact_name'] ?? json['contactName'],
+      phoneNumber: json['phone_number'] ?? json['phoneNumber'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,

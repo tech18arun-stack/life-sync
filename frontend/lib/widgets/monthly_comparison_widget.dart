@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 
 class MonthlyComparisonWidget extends StatelessWidget {
   final Map<String, dynamic> comparisonData;
@@ -15,12 +16,13 @@ class MonthlyComparisonWidget extends StatelessWidget {
     final previous = comparisonData['previous'] as double;
     final diff = comparisonData['difference'] as double;
     final percent = comparisonData['percentChange'] as double;
+    final isDesktop = Responsive.isDesktop(context);
 
     final isIncrease = diff > 0;
-    final isGood = !isIncrease; // For expenses, decrease is good
+    final isGood = !isIncrease;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isDesktop ? 32 : 24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -40,15 +42,15 @@ class MonthlyComparisonWidget extends StatelessWidget {
               Text(
                 'Monthly Comparison',
                 style: GoogleFonts.inter(
-                  fontSize: 18,
+                  fontSize: Responsive.getFontSize(context, FontSizeType.title),
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 16 : 12,
+                  vertical: isDesktop ? 8 : 6,
                 ),
                 decoration: BoxDecoration(
                   color: (isGood ? AppTheme.successColor : AppTheme.errorColor)
@@ -64,7 +66,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
                           ? AppTheme.successColor
                           : AppTheme.errorColor,
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: isDesktop ? 6 : 4),
                     Text(
                       '${percent.abs().toStringAsFixed(1)}%',
                       style: GoogleFonts.inter(
@@ -72,7 +74,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
                             ? AppTheme.successColor
                             : AppTheme.errorColor,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: Responsive.getFontSize(context, FontSizeType.small),
                       ),
                     ),
                   ],
@@ -80,7 +82,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isDesktop ? 40 : 32),
           Row(
             children: [
               Expanded(
@@ -106,7 +108,7 @@ class MonthlyComparisonWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isDesktop ? 32 : 24),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -135,15 +137,15 @@ class MonthlyComparisonWidget extends StatelessWidget {
           label,
           style: GoogleFonts.inter(
             color: Theme.of(context).textTheme.bodySmall?.color,
-            fontSize: 12,
+            fontSize: Responsive.getFontSize(context, FontSizeType.small),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: Responsive.isDesktop(context) ? 12 : 8),
         Text(
           '₹${amount.toStringAsFixed(0)}',
           style: GoogleFonts.inter(
             color: color,
-            fontSize: 24,
+            fontSize: Responsive.isDesktop(context) ? 28 : 24,
             fontWeight: FontWeight.bold,
           ),
         ),

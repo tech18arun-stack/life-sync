@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
 import '../utils/app_theme.dart';
+import '../services/startio_ads.dart';
 
 /// Screen for managing family member user accounts
 class FamilyUserAccountsScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -502,7 +504,7 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) => StartIOAds.showInterstitial());
   }
 
   Future<void> _toggleMemberActive(User member) async {
@@ -579,7 +581,7 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) => StartIOAds.showInterstitial());
   }
 }
 
@@ -666,6 +668,7 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
       if (result['success']) {
         Navigator.pop(context);
         widget.onSaved();
+        StartIOAds.showInterstitial();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

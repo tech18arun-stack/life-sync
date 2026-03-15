@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'services/appwrite_service.dart';
 import 'providers/auth_provider.dart';
 import 'services/deep_link_service.dart';
 import 'providers/financial_data_manager.dart';
@@ -17,24 +17,28 @@ import 'providers/savings_goal_provider.dart';
 import 'providers/family_event_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/analytics_provider.dart';
+import 'providers/subscription_provider.dart';
 
 import 'services/notification_service.dart';
 import 'services/gemini_service.dart';
 import 'services/security_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/startio_ads.dart';
 import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'widgets/app_lifecycle_manager.dart';
+import 'services/config_service.dart';
+import 'screens/maintenance_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase
-  await Supabase.initialize(
-    url: 'https://fjmjxkevxhftfzfhcnbd.supabase.co', // Your Supabase URL
-    anonKey:
-        'sb_publishable_CjWTGM3MaKZFSehLfunyJA_pa2p9gek', // Your Supabase anon key
-  );
+  // Initialize Config Service First
+  await ConfigService().initialize();
+
+  // Initialize Appwrite
+  await AppwriteService().initialize();
 
   // Initialize Security Service (App Lock / Biometric)
   await SecurityService().initialize();
@@ -48,6 +52,12 @@ void main() async {
 
     // Initialize Deep Link Service
     await DeepLinkService.initDeepLinks();
+
+    // Initialize Start.io only if enabled, but REMOVE showSplash and showReturnAd for login splash
+    if (ConfigService().adsEnabled && ConfigService().startioEnabled) {
+      await StartIOAds.initialize(ConfigService().startioAppId);
+      // NOTE: Removed showSplash and showReturnAd per user request to clean up login/splash
+    }
   }
 
   runApp(const MyApp());
@@ -66,24 +76,70 @@ class MyApp extends StatelessWidget {
         // Theme Provider
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
 
-        // Centralized Financial Data Manager (Supabase)
-        ChangeNotifierProvider(
-          create: (_) => FinancialDataManager()..initialize(),
+        // Centralized Financial Data Manager (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, FinancialDataManager>(
+          create: (_) => FinancialDataManager(),
+          update: (_, auth, manager) {
+            final mgr = manager ?? FinancialDataManager();
+            // Re-initialize or clear when auth state changes
+            if (auth.isLoggedIn && !mgr.isInitialized) {
+              Future.microtask(() => mgr.initialize());
+            } else if (!auth.isLoggedIn && mgr.isInitialized) {
+              Future.microtask(() => mgr.clear());
+            }
+            return mgr;
+          },
         ),
 
-        // Family Members Provider (Supabase)
-        ChangeNotifierProvider(create: (_) => FamilyProvider()..initialize()),
-
-        // Family Numbers Provider (Supabase)
-        ChangeNotifierProvider(
-          create: (_) => FamilyNumberProvider()..initialize(),
+        // Family Members Provider (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, FamilyProvider>(
+          create: (_) => FamilyProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? FamilyProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.members.isEmpty) {
+              Future.microtask(
+                () => p.initialize(),
+              ); // Simplified check for now
+            }
+            return p;
+          },
         ),
 
-        // Tasks Provider (Supabase)
-        ChangeNotifierProvider(create: (_) => TaskProvider()..initialize()),
+        // Family Numbers Provider (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, FamilyNumberProvider>(
+          create: (_) => FamilyNumberProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? FamilyNumberProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.numbers.isEmpty) {
+              Future.microtask(() => p.initialize());
+            }
+            return p;
+          },
+        ),
 
-        // Health Provider (Supabase)
-        ChangeNotifierProvider(create: (_) => HealthProvider()..initialize()),
+        // Tasks Provider (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, TaskProvider>(
+          create: (_) => TaskProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? TaskProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.tasks.isEmpty) {
+              Future.microtask(() => p.initialize());
+            }
+            return p;
+          },
+        ),
+
+        // Health Provider (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, HealthProvider>(
+          create: (_) => HealthProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? HealthProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.healthRecords.isEmpty) {
+              Future.microtask(() => p.initialize());
+            }
+            return p;
+          },
+        ),
 
         // Reminder Provider
         ChangeNotifierProxyProvider<FinancialDataManager, ReminderProvider>(
@@ -92,9 +148,16 @@ class MyApp extends StatelessWidget {
               reminderProvider!..setFinancialManager(financialManager),
         ),
 
-        // Savings Goals Provider (Supabase)
-        ChangeNotifierProvider(
-          create: (_) => SavingsGoalProvider()..initialize(),
+        // Savings Goals Provider (Appwrite)
+        ChangeNotifierProxyProvider<AuthProvider, SavingsGoalProvider>(
+          create: (_) => SavingsGoalProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? SavingsGoalProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.goals.isEmpty) {
+              Future.microtask(() => p.initialize());
+            }
+            return p;
+          },
         ),
 
         // Family Event Provider (still uses local for now)
@@ -107,6 +170,20 @@ class MyApp extends StatelessWidget {
           create: (_) => AnalyticsProvider(),
           update: (_, financialManager, analyticsProvider) =>
               analyticsProvider!..setFinancialManager(financialManager),
+        ),
+
+        // Subscription Provider
+        ChangeNotifierProxyProvider<AuthProvider, SubscriptionProvider>(
+          create: (_) => SubscriptionProvider(),
+          update: (_, auth, provider) {
+            final p = provider ?? SubscriptionProvider();
+            if (auth.isLoggedIn && !p.isLoading && p.subscriptions.isEmpty) {
+              Future.microtask(() => p.initialize());
+            } else if (!auth.isLoggedIn && p.subscriptions.isNotEmpty) {
+              Future.microtask(() => p.clear());
+            }
+            return p;
+          },
         ),
 
         // AI Service
@@ -123,9 +200,13 @@ class MyApp extends StatelessWidget {
                   themeProvider.themeData.textTheme,
                 ),
               ),
-              initialRoute: '/',
+              initialRoute: ConfigService().maintenanceMode
+                  ? '/maintenance'
+                  : '/',
               routes: {
                 '/': (context) => const SplashScreen(),
+                '/maintenance': (context) => const MaintenanceScreen(),
+                '/onboarding': (context) => const OnboardingScreen(),
                 '/login': (context) => const LoginScreen(),
                 '/home': (context) => const HomeScreen(),
               },

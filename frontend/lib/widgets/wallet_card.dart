@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 
 class WalletCard extends StatelessWidget {
   final double balance;
@@ -25,10 +26,11 @@ class WalletCard extends StatelessWidget {
     );
 
     final bool isPositive = percentageChange >= 0;
+    final isDesktop = Responsive.isDesktop(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isDesktop ? 32 : 24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(32),
@@ -42,25 +44,25 @@ class WalletCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Your balance',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: Responsive.getFontSize(context, FontSizeType.body),
               color: AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isDesktop ? 12 : 8),
           Text(
             currencyFormat.format(balance),
-            style: const TextStyle(
-              fontSize: 36,
+            style: TextStyle(
+              fontSize: isDesktop ? 44 : 36,
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
               letterSpacing: -1,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isDesktop ? 12 : 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -71,17 +73,20 @@ class WalletCard extends StatelessWidget {
                       ? AppTheme.successColor
                       : AppTheme.errorColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: Responsive.getFontSize(context, FontSizeType.small),
                 ),
               ),
               const SizedBox(width: 4),
-              const Text(
+              Text(
                 'Last month',
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
+                style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: Responsive.getFontSize(context, FontSizeType.small),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isDesktop ? 40 : 32),
           Row(
             children: [
               Expanded(
@@ -93,7 +98,7 @@ class WalletCard extends StatelessWidget {
                   onDeposit,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isDesktop ? 20 : 16),
               Expanded(
                 child: _buildButton(
                   context,
@@ -103,16 +108,17 @@ class WalletCard extends StatelessWidget {
                   onSend,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isDesktop ? 16 : 12),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(isDesktop ? 14 : 12),
                 decoration: BoxDecoration(
                   color: AppTheme.textTertiary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.more_horiz,
                   color: AppTheme.textPrimary,
+                  size: Responsive.getIconSize(context),
                 ),
               ),
             ],
@@ -129,10 +135,14 @@ class WalletCard extends StatelessWidget {
     Color color,
     VoidCallback onTap,
   ) {
+    final isDesktop = Responsive.isDesktop(context);
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: EdgeInsets.symmetric(
+          vertical: isDesktop ? 16 : 14,
+        ),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(20),
@@ -141,20 +151,24 @@ class WalletCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(isDesktop ? 6 : 4),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white, size: 16),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: isDesktop ? 18 : 16,
+              ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: isDesktop ? 12 : 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
               ),
             ),
           ],

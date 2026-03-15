@@ -8,6 +8,7 @@ import '../models/savings_goal.dart';
 import '../providers/savings_goal_provider.dart';
 import '../providers/financial_data_manager.dart';
 import '../services/gemini_service.dart';
+import '../services/startio_ads.dart';
 import '../utils/app_theme.dart';
 
 class SavingsGoalsScreen extends StatelessWidget {
@@ -19,6 +20,7 @@ class SavingsGoalsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      bottomNavigationBar: const StartioBanner(),
       body: Consumer<SavingsGoalProvider>(
         builder: (context, provider, child) {
           final activeGoals = provider.getActiveGoals();
@@ -28,28 +30,31 @@ class SavingsGoalsScreen extends StatelessWidget {
             slivers: [
               // Modern App Bar
               SliverAppBar(
-                expandedHeight: 120,
+                expandedHeight: 140,
                 floating: true,
                 pinned: true,
                 backgroundColor: theme.scaffoldBackgroundColor,
                 elevation: 0,
+                scrolledUnderElevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
                     'Savings Goals',
                     style: GoogleFonts.inter(
                       color: theme.textTheme.titleLarge?.color,
                       fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      letterSpacing: -1,
                     ),
                   ),
                   centerTitle: false,
-                  titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+                  titlePadding: const EdgeInsets.only(left: 20, bottom: 20),
                 ),
                 actions: [
                   IconButton(
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: AppTheme.primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const FaIcon(
@@ -69,13 +74,13 @@ class SavingsGoalsScreen extends StatelessWidget {
                         color: theme.cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: theme.dividerColor.withValues(alpha: 0.5),
+                          color: theme.dividerColor.withOpacity(0.5),
                         ),
                       ),
-                      child: FaIcon(
+                      child: const FaIcon(
                         FontAwesomeIcons.plus,
                         size: 18,
-                        color: theme.iconTheme.color,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                     onPressed: () => _showAddGoalDialog(context),
@@ -91,7 +96,13 @@ class SavingsGoalsScreen extends StatelessWidget {
                     horizontal: 20,
                     vertical: 10,
                   ),
-                  child: _buildSummaryCard(context, provider),
+                  child: Column(
+                    children: [
+                      _buildSummaryCard(context, provider),
+                      const SizedBox(height: 20),
+                      const Center(child: StartioMrec()),
+                    ],
+                  ),
                 ),
               ),
 
@@ -168,34 +179,50 @@ class SavingsGoalsScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
+                                color: Colors.black.withOpacity(0.05),
                                 blurRadius: 20,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          child: FaIcon(
-                            FontAwesomeIcons.piggyBank,
-                            size: 48,
-                            color: theme.disabledColor,
+                          child: Icon(
+                            Icons.savings_outlined,
+                            size: 64,
+                            color: AppTheme.primaryColor.withOpacity(0.5),
                           ),
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'No savings goals yet',
+                          'No Savings Goals Yet',
                           style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                             color: theme.textTheme.bodyLarge?.color,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        TextButton(
+                        Text(
+                          'Track your dreams by creating\nyour first savings goal.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton.icon(
                           onPressed: () => _showAddGoalDialog(context),
-                          child: Text(
-                            'Create your first goal',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Create Goal'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                         ),
@@ -218,93 +245,107 @@ class SavingsGoalsScreen extends StatelessWidget {
     final progress = provider.getSavingsProgress();
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryColor, Color(0xFF1976D2)],
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor,
+            const Color(0xFF1565C0), // Darker professional blue
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: AppTheme.primaryColor.withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Positioned(
+            right: -10,
+            top: -10,
+            child: Icon(
+              Icons.savings_rounded,
+              color: Colors.white.withOpacity(0.12),
+              size: 90,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Total Savings',
                     style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '₹${totalCurrent.toStringAsFixed(0)}',
-                    style: GoogleFonts.inter(
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.trending_up_rounded,
                       color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+                      size: 18,
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const FaIcon(
-                  FontAwesomeIcons.chartPie,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              const SizedBox(height: 4),
               Text(
-                'Goal: ₹${totalTarget.toStringAsFixed(0)}',
-                style: GoogleFonts.inter(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                '${progress.toStringAsFixed(1)}%',
+                '₹${NumberFormat('#,##,##0', 'en_IN').format(totalCurrent)}',
                 style: GoogleFonts.inter(
                   color: Colors.white,
+                  fontSize: 36,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  letterSpacing: -1,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Goal: ₹${NumberFormat('#,##,##0', 'en_IN').format(totalTarget)}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${progress.toStringAsFixed(1)}%',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: LinearProgressIndicator(
+                  value: progress.clamp(0, 100) / 100,
+                  minHeight: 12,
+                  backgroundColor: Colors.black.withOpacity(0.2),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0, 100) / 100,
-              minHeight: 10,
-              backgroundColor: Colors.black.withValues(alpha: 0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
           ),
         ],
       ),
@@ -321,19 +362,19 @@ class SavingsGoalsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: isCompleted
-            ? Border.all(
-                color: AppTheme.successColor.withValues(alpha: 0.5),
-                width: 2,
-              )
-            : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: isCompleted
+              ? AppTheme.successColor.withOpacity(0.3)
+              : theme.dividerColor.withOpacity(0.05),
+          width: isCompleted ? 2 : 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -348,18 +389,16 @@ class SavingsGoalsScreen extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 54,
+                      height: 54,
                       decoration: BoxDecoration(
-                        color: _getPriorityColor(
-                          goal.priority,
-                        ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
+                        color: _getPriorityColor(goal.priority).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         goal.emoji,
-                        style: const TextStyle(fontSize: 24),
+                        style: const TextStyle(fontSize: 26),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -370,29 +409,27 @@ class SavingsGoalsScreen extends StatelessWidget {
                           Text(
                             goal.title,
                             style: GoogleFonts.inter(
-                              fontSize: 16,
+                              fontSize: 17,
                               fontWeight: FontWeight.bold,
                               color: theme.textTheme.bodyLarge?.color,
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
                               Container(
-                                margin: const EdgeInsets.only(top: 4),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getPriorityColor(
-                                    goal.priority,
-                                  ).withValues(alpha: 0.1),
+                                  color: _getPriorityColor(goal.priority).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  goal.priority,
+                                  goal.priority.toUpperCase(),
                                   style: GoogleFonts.inter(
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                     color: _getPriorityColor(goal.priority),
                                   ),
@@ -404,7 +441,7 @@ class SavingsGoalsScreen extends StatelessWidget {
                                   '•  ${goal.daysRemaining} days left',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
-                                    color: theme.textTheme.bodyMedium?.color,
+                                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
                                   ),
                                 ),
                               ],
@@ -413,10 +450,13 @@ class SavingsGoalsScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const FaIcon(FontAwesomeIcons.circlePlus, size: 24),
-                      color: AppTheme.primaryColor,
-                      onPressed: () => _showAddMoneyDialog(context, goal),
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      child: IconButton(
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 28),
+                        color: AppTheme.primaryColor,
+                        onPressed: () => _showAddMoneyDialog(context, goal),
+                      ),
                     ),
                   ],
                 ),
@@ -424,36 +464,84 @@ class SavingsGoalsScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '₹${goal.currentAmount.toStringAsFixed(0)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: isCompleted
-                            ? AppTheme.successColor
-                            : AppTheme.primaryColor,
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '₹${NumberFormat('#,##,##0', 'en_IN').format(goal.currentAmount)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isCompleted
+                                  ? AppTheme.successColor
+                                  : AppTheme.primaryColor,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' saved',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Text(
-                      'of ₹${goal.targetAmount.toStringAsFixed(0)}',
+                      'Goal: ₹${NumberFormat('#,##,##0', 'en_IN').format(goal.targetAmount)}',
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                         color: theme.textTheme.bodyMedium?.color,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: goal.percentageCompleted / 100,
-                    minHeight: 12,
-                    backgroundColor: theme.dividerColor.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isCompleted
-                          ? AppTheme.successColor
-                          : AppTheme.primaryColor,
+                Stack(
+                  children: [
+                    Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: goal.percentageCompleted / 100 > 1 ? 1 : goal.percentageCompleted / 100,
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              isCompleted ? AppTheme.successColor : AppTheme.primaryColor,
+                              (isCompleted ? AppTheme.successColor : AppTheme.primaryColor)
+                                  .withOpacity(0.7),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isCompleted ? AppTheme.successColor : AppTheme.primaryColor)
+                                  .withOpacity(0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(
+                    '${goal.percentageCompleted.toStringAsFixed(1)}% complete',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isCompleted ? AppTheme.successColor : AppTheme.primaryColor,
                     ),
                   ),
                 ),
@@ -610,7 +698,7 @@ class SavingsGoalsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   dropdownColor: Theme.of(context).cardColor,
                   style: GoogleFonts.inter(
                     color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -725,6 +813,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                         ).updateGoal(newGoal);
                       }
                       Navigator.pop(context);
+                      // Show ad after goal action
+                      StartIOAds.showInterstitial();
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -807,6 +897,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                         double.parse(amountController.text),
                       );
                       Navigator.pop(context);
+                      // Show ad after adding money
+                      StartIOAds.showInterstitial();
                     }
                   },
                   style: ElevatedButton.styleFrom(

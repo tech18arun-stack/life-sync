@@ -9,7 +9,11 @@ import '../providers/financial_data_manager.dart';
 import '../providers/family_provider.dart';
 import '../providers/family_number_provider.dart';
 import '../providers/task_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/savings_goal_provider.dart';
+import '../services/config_service.dart';
+import '../widgets/app_updater_dialog.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -142,6 +146,48 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuthAndNavigate() async {
+    // Check for updates
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      final config = ConfigService();
+
+      if (currentVersion != config.latestVersion) {
+        if (config.forceUpdate) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AppUpdaterDialog(
+              downloadUrl: config.downloadUrl,
+              latestVersion: config.latestVersion,
+              releaseNotes: config.updateMessage,
+              forceUpdate: true,
+            ),
+          );
+          return; // Stop execution, forcing them to update
+        } else {
+          // Optional update
+          if (mounted) {
+            await showDialog(
+              context: context,
+              barrierDismissible: true,
+              builder: (_) => AppUpdaterDialog(
+                downloadUrl: config.downloadUrl,
+                latestVersion: config.latestVersion,
+                releaseNotes: config.updateMessage,
+                forceUpdate: false,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking version: $e');
+    }
+
+    if (!mounted) return;
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     // Initialize auth
@@ -156,8 +202,17 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } else {
-      // User is not logged in, go to login screen
-      Navigator.of(context).pushReplacementNamed('/login');
+      // User is not logged in, check if they've seen onboarding
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+
+      if (mounted) {
+        if (!hasSeenOnboarding) {
+          Navigator.of(context).pushReplacementNamed('/onboarding');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+      }
     }
   }
 
@@ -433,10 +488,37 @@ class _SplashScreenState extends State<SplashScreen>
                 fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 10),
+            // Show config status at the bottom
+            FutureBuilder<String>(
+              future: _getVersionString(),
+              builder: (context, snapshot) {
+                return Text(
+                  snapshot.data ?? 'Checking version...',
+                  style: GoogleFonts.inter(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
+                );
+              },
+            ),
           ],
         );
       },
     );
+  }
+
+  Future<String> _getVersionString() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      final config = ConfigService();
+
+      // Ensure config is loaded or fallback is used
+      return 'v$currentVersion  |  Remote: v${config.latestVersion}';
+    } catch (e) {
+      return '';
+    }
   }
 }
 

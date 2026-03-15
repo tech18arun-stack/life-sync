@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 import '../models/reminder.dart';
 import '../models/expense.dart';
 import 'financial_data_manager.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 import '../services/notification_service.dart';
 
+/// Reminder Provider - State management for reminders
+/// 
+/// Updated to use Appwrite backend via RemindersRepository.
 class ReminderProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final RemindersRepository _repository = RemindersRepository();
   List<Reminder> _reminders = [];
   bool _isLoading = false;
   String? _error;
@@ -26,8 +29,7 @@ class ReminderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getReminders(); // Add userId filter if needed
-      _reminders = data.map((r) => Reminder.fromJson(r)).toList();
+      _reminders = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading reminders: $e');
@@ -39,8 +41,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> addReminder(Reminder reminder) async {
     try {
-      final response = await _supabase.createReminder(reminder.toJson());
-      final newReminder = Reminder.fromJson(response);
+      final newReminder = await _repository.create(reminder);
       _reminders.add(newReminder);
       NotificationService().scheduleReminderNotification(newReminder);
       notifyListeners();
@@ -52,11 +53,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> updateReminder(Reminder reminder) async {
     try {
-      final response = await _supabase.updateReminder(
-        reminder.id!,
-        reminder.toJson(),
-      );
-      final updatedReminder = Reminder.fromJson(response);
+      final updatedReminder = await _repository.update(reminder.id!, reminder);
       final index = _reminders.indexWhere((r) => r.id == reminder.id);
       if (index != -1) {
         _reminders[index] = updatedReminder;
@@ -71,7 +68,7 @@ class ReminderProvider with ChangeNotifier {
 
   Future<void> deleteReminder(String id) async {
     try {
-      await _supabase.deleteReminder(id);
+      await _repository.delete(id);
       NotificationService().cancelNotification(id.hashCode);
       _reminders.removeWhere((r) => r.id == id);
       notifyListeners();
@@ -88,9 +85,7 @@ class ReminderProvider with ChangeNotifier {
       reminder.isPaid = true;
 
       // Update the reminder in the database
-      final updatedReminderData = reminder.toJson();
-      final response = await _supabase.updateReminder(id, updatedReminderData);
-      final updatedReminder = Reminder.fromJson(response);
+      final updatedReminder = await _repository.update(id, reminder);
 
       final index = _reminders.indexWhere((r) => r.id == id);
       if (index != -1) {

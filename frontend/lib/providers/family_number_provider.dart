@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/family_number.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 
-/// Provider for managing family phone numbers via Supabase
+/// Provider for managing family phone numbers via Appwrite
+/// 
+/// Updated to use Appwrite backend via FamilyNumbersRepository.
 class FamilyNumberProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final FamilyNumbersRepository _repository = FamilyNumbersRepository();
 
   List<FamilyNumber> _numbers = [];
   bool _isLoading = false;
@@ -30,8 +32,7 @@ class FamilyNumberProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getFamilyNumbers(); // Add userId filter if needed
-      _numbers = data.map((n) => FamilyNumber.fromJson(n)).toList();
+      _numbers = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading family numbers: $e');
@@ -43,8 +44,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> addNumber(FamilyNumber number) async {
     try {
-      final response = await _supabase.createFamilyNumber(number.toJson());
-      final newNumber = FamilyNumber.fromJson(response);
+      final newNumber = await _repository.create(number);
       _numbers.add(newNumber);
       notifyListeners();
     } catch (e) {
@@ -55,11 +55,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> updateNumber(FamilyNumber number) async {
     try {
-      final response = await _supabase.updateFamilyNumber(
-        number.id!,
-        number.toJson(),
-      );
-      final updatedNumber = FamilyNumber.fromJson(response);
+      final updatedNumber = await _repository.update(number.id!, number);
       final index = _numbers.indexWhere((n) => n.id == number.id);
       if (index != -1) {
         _numbers[index] = updatedNumber;
@@ -73,7 +69,7 @@ class FamilyNumberProvider with ChangeNotifier {
 
   Future<void> deleteNumber(String id) async {
     try {
-      await _supabase.deleteFamilyNumber(id);
+      await _repository.delete(id);
       _numbers.removeWhere((n) => n.id == id);
       notifyListeners();
     } catch (e) {

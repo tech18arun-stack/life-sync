@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +12,7 @@ import '../providers/task_provider.dart';
 import '../providers/savings_goal_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -261,17 +261,22 @@ class _LoginScreenState extends State<LoginScreen>
               if (formKey.currentState!.validate()) {
                 Navigator.pop(dialogContext);
                 try {
-                  await Supabase.instance.client.auth.resetPasswordForEmail(
+                  final authProvider = context.read<AuthProvider>();
+                  final success = await authProvider.resetPassword(
                     emailController.text.trim(),
                   );
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Password reset email sent to ${emailController.text}',
+                          success
+                              ? 'Password reset email sent to ${emailController.text}'
+                              : 'Failed to send reset email: ${authProvider.error}',
                           style: GoogleFonts.inter(),
                         ),
-                        backgroundColor: AppTheme.successColor,
+                        backgroundColor: success
+                            ? AppTheme.successColor
+                            : AppTheme.errorColor,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -356,113 +361,145 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildHeader(isDark),
-                      const SizedBox(height: 48),
-                      _buildLoginForm(authProvider, isDark),
-                      const SizedBox(height: 24),
-                      _buildLoginButton(authProvider),
-                      const SizedBox(height: 24),
-                      _buildRegisterLink(isDark),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 1024;
+              
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.getHorizontalPadding(context),
+                  vertical: Responsive.isDesktop(context) ? 40 : 24,
+                ),
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isDesktop ? 500 : double.infinity,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: isDesktop ? 60 : 32),
+                          _buildHeader(isDark, context),
+                          SizedBox(height: isDesktop ? 64 : 48),
+                          _buildLoginForm(authProvider, isDark, context),
+                          SizedBox(height: isDesktop ? 32 : 24),
+                          _buildLoginButton(authProvider, context),
+                          SizedBox(height: isDesktop ? 32 : 24),
+                          _buildRegisterLink(isDark, context),
+                          SizedBox(height: Responsive.getHorizontalPadding(context)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader(bool isDark, BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    final isTablet = Responsive.isTablet(context);
+    final logoSize = isDesktop ? 72.0 : (isTablet ? 60.0 : 48.0);
+    final logoPadding = isDesktop ? 32.0 : (isTablet ? 28.0 : 24.0);
+
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(logoPadding),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primaryColor, Color(0xFF1976D2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
+            gradient: AppTheme.primaryGradient,
+            borderRadius: BorderRadius.circular(isDesktop ? 32 : 28),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                blurRadius: isDesktop ? 30 : 24,
+                offset: Offset(0, isDesktop ? 15 : 12),
               ),
             ],
           ),
-          child: const FaIcon(
+          child: FaIcon(
             FontAwesomeIcons.house,
-            size: 40,
+            size: logoSize,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: isDesktop ? 40 : (isTablet ? 32 : 28)),
         Text(
           'LifeSync',
           style: GoogleFonts.inter(
-            fontSize: 32,
+            fontSize: isDesktop
+                ? Responsive.getFontSize(context, FontSizeType.largeDisplay)
+                : Responsive.getFontSize(context, FontSizeType.display),
             fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+          ).copyWith(
+            foreground: Paint()
+              ..shader = AppTheme.primaryGradient.createShader(
+                const Rect.fromLTWH(0, 0, 200, 70),
+              ),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: isDesktop ? 16 : (isTablet ? 12 : 8)),
         Text(
           'Plan • Track • Achieve',
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
             color: isDark ? AppTheme.textSecondary : Colors.grey[600],
-            letterSpacing: 2,
+            letterSpacing: 3,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Welcome back! Please login to continue.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: isDark ? AppTheme.textTertiary : Colors.grey[500],
+        SizedBox(height: isDesktop ? 24 : (isTablet ? 20 : 16)),
+        SizedBox(
+          width: isDesktop ? 400 : double.infinity,
+          child: Text(
+            'Welcome back! Please login to continue.',
+            style: GoogleFonts.inter(
+              fontSize: Responsive.getFontSize(context, FontSizeType.body),
+              color: isDark ? AppTheme.textTertiary : Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLoginForm(AuthProvider authProvider, bool isDark) {
+  Widget _buildLoginForm(AuthProvider authProvider, bool isDark, BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    final isTablet = Responsive.isTablet(context);
+    final cardRadius = isDesktop ? 32.0 : (isTablet ? 28.0 : 24.0);
+    final inputRadius = isDesktop ? 50.0 : (isTablet ? 48.0 : 44.0);
+    final padding = isDesktop ? 40.0 : (isTablet ? 32.0 : 28.0);
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(cardRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(padding),
           decoration: BoxDecoration(
             color: isDark
-                ? AppTheme.cardColor.withValues(alpha: 0.8)
-                : Colors.white.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(24),
+                ? AppTheme.cardColor.withValues(alpha: 0.9)
+                : Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(cardRadius),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.white.withValues(alpha: 0.5),
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : Colors.white.withValues(alpha: 0.8),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                blurRadius: 25,
-                offset: const Offset(0, 15),
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                blurRadius: isDesktop ? 30 : 25,
+                offset: Offset(0, isDesktop ? 15 : 12),
               ),
             ],
           ),
@@ -475,25 +512,29 @@ class _LoginScreenState extends State<LoginScreen>
                   keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.inter(
                     color: isDark ? AppTheme.textPrimary : Colors.black,
+                    fontSize: Responsive.getFontSize(context, FontSizeType.body),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Email',
                     hintText: 'Enter your email',
                     labelStyle: GoogleFonts.inter(
-                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: Responsive.getFontSize(context, FontSizeType.body),
                     ),
-                    hintStyle: GoogleFonts.inter(color: Colors.grey),
+                    hintStyle: GoogleFonts.inter(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(inputRadius),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
                     fillColor: isDark
-                        ? AppTheme.backgroundColor
-                        : Colors.grey[100],
+                        ? AppTheme.surfaceColor.withValues(alpha: 0.6)
+                        : Colors.grey[50],
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(inputRadius),
                       borderSide: const BorderSide(
                         color: AppTheme.primaryColor,
                         width: 2,
@@ -512,20 +553,24 @@ class _LoginScreenState extends State<LoginScreen>
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isDesktop ? 28 : (isTablet ? 24 : 20)),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   style: GoogleFonts.inter(
                     color: isDark ? AppTheme.textPrimary : Colors.black,
+                    fontSize: Responsive.getFontSize(context, FontSizeType.body),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Enter your password',
                     labelStyle: GoogleFonts.inter(
-                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: Responsive.getFontSize(context, FontSizeType.body),
                     ),
-                    hintStyle: GoogleFonts.inter(color: Colors.grey),
+                    hintStyle: GoogleFonts.inter(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -537,15 +582,15 @@ class _LoginScreenState extends State<LoginScreen>
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(inputRadius),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
                     fillColor: isDark
-                        ? AppTheme.backgroundColor
-                        : Colors.grey[100],
+                        ? AppTheme.surfaceColor.withValues(alpha: 0.6)
+                        : Colors.grey[50],
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(inputRadius),
                       borderSide: const BorderSide(
                         color: AppTheme.primaryColor,
                         width: 2,
@@ -562,7 +607,7 @@ class _LoginScreenState extends State<LoginScreen>
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: isDesktop ? 24 : (isTablet ? 20 : 16)),
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
@@ -572,6 +617,7 @@ class _LoginScreenState extends State<LoginScreen>
                       style: GoogleFonts.inter(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.w600,
+                        fontSize: Responsive.getFontSize(context, FontSizeType.body),
                       ),
                     ),
                   ),
@@ -584,27 +630,33 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginButton(AuthProvider authProvider) {
+  Widget _buildLoginButton(AuthProvider authProvider, BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    final isTablet = Responsive.isTablet(context);
+    final buttonRadius = isDesktop ? 28.0 : (isTablet ? 24.0 : 20.0);
+
     return Container(
       width: double.infinity,
-      height: 56,
+      height: Responsive.getButtonHeight(context),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        gradient: AppTheme.primaryGradient,
+        borderRadius: BorderRadius.circular(buttonRadius),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+            blurRadius: isDesktop ? 20 : 16,
+            offset: Offset(0, isDesktop ? 8 : 6),
           ),
         ],
       ),
       child: ElevatedButton(
         onPressed: authProvider.isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(buttonRadius),
           ),
           elevation: 0,
         ),
@@ -613,20 +665,24 @@ class _LoginScreenState extends State<LoginScreen>
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const FaIcon(FontAwesomeIcons.rightToBracket, size: 18),
+                  FaIcon(
+                    FontAwesomeIcons.rightToBracket,
+                    size: Responsive.getIconSize(context),
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     'Login',
                     style: GoogleFonts.inter(
-                      fontSize: 18,
+                      fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
@@ -635,7 +691,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildRegisterLink(bool isDark) {
+  Widget _buildRegisterLink(bool isDark, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -643,6 +699,7 @@ class _LoginScreenState extends State<LoginScreen>
           "Don't have an account? ",
           style: GoogleFonts.inter(
             color: isDark ? AppTheme.textSecondary : Colors.grey[600],
+            fontSize: Responsive.getFontSize(context, FontSizeType.body),
           ),
         ),
         GestureDetector(
@@ -657,6 +714,7 @@ class _LoginScreenState extends State<LoginScreen>
             style: GoogleFonts.inter(
               color: AppTheme.primaryColor,
               fontWeight: FontWeight.bold,
+              fontSize: Responsive.getFontSize(context, FontSizeType.body),
             ),
           ),
         ),

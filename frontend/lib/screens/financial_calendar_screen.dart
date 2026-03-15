@@ -12,6 +12,7 @@ import '../models/expense.dart';
 import '../models/income.dart';
 import '../widgets/add_expense_dialog.dart';
 import '../widgets/add_income_dialog.dart';
+import '../services/startio_ads.dart';
 
 class FinancialCalendarScreen extends StatefulWidget {
   const FinancialCalendarScreen({super.key});
@@ -1530,7 +1531,7 @@ class _FinancialCalendarScreenState extends State<FinancialCalendarScreen>
                       showDialog(
                         context: context,
                         builder: (context) => const AddExpenseDialog(),
-                      );
+                      ).then((_) => StartIOAds.showInterstitial());
                     },
                   ),
                 ),
@@ -1546,7 +1547,7 @@ class _FinancialCalendarScreenState extends State<FinancialCalendarScreen>
                       showDialog(
                         context: context,
                         builder: (context) => const AddIncomeDialog(),
-                      );
+                      ).then((_) => StartIOAds.showInterstitial());
                     },
                   ),
                 ),

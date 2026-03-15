@@ -1,10 +1,18 @@
 import 'dart:convert';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:appwrite/appwrite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart' as AppUser;
+import 'appwrite_service.dart';
 
-/// Authentication Service for user login/register using Supabase
+/// Authentication Service for user login/register using Appwrite
+/// 
+/// This service replaces the Supabase authentication with Appwrite Auth.
+/// 
+/// User roles:
+/// - Owner: Full access
+/// - Member: Family member access
+/// - Client: Limited access (created by Admin)
 class AuthService {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
@@ -14,43 +22,53 @@ class AuthService {
   factory AuthService() => _instance;
   AuthService._internal();
 
+  final AppwriteService _appwrite = AppwriteService();
+  
   String? _token;
   AppUser.User? _currentUser;
 
   // Getters
   String? get token => _token;
   AppUser.User? get currentUser => _currentUser;
-  bool get isLoggedIn => _token != null && _currentUser != null;
-  bool get isAdmin => _currentUser?.isAdmin ?? false;
-  bool get isClient => _currentUser?.isClient ?? false;
+  bool get isLoggedIn => _currentUser != null;
+  bool get isAdmin => _currentUser?.userType == 'admin';
+  bool get isClient => _currentUser?.userType == 'client';
 
-  // Get Supabase client
-  SupabaseClient get client => Supabase.instance.client;
-
-  /// Initialize auth service - check for stored token
+  /// Initialize auth service - check for stored user data
   Future<bool> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString(_tokenKey);
       final userJson = prefs.getString(_userKey);
 
-      if (_token != null && userJson != null) {
+      if (userJson != null) {
+        // Load user data from storage
         _currentUser = AppUser.User.fromJson(jsonDecode(userJson));
+        
+        debugPrint('✅ Found stored user: ${_currentUser?.email} (ID: ${_currentUser?.id})');
 
-        // Check if user session is still valid
-        final session = client.auth.currentSession;
-        if (session != null) {
+        // Verify session is still valid with Appwrite
+        try {
+          final session = await _appwrite.account.getSession(sessionId: 'current');
+          debugPrint('✅ Session valid: ${session.$id}');
+          
           // Refresh user profile from database
           await _loadUserProfile();
+          debugPrint('✅ User profile refreshed');
           return true;
-        } else {
-          await logout();
+        } catch (e) {
+          // Session invalid or expired
+          debugPrint('⚠️ Session invalid or expired: $e');
+          // Don't logout automatically - let the app decide
+          _currentUser = null;
+          await prefs.remove(_userKey);
           return false;
         }
       }
+      
+      debugPrint('ℹ️ No stored user data found');
       return false;
     } catch (e) {
-      debugPrint('Error initializing auth: $e');
+      debugPrint('❌ Error initializing auth: $e');
       return false;
     }
   }
@@ -63,45 +81,54 @@ class AuthService {
     String? phone,
   }) async {
     try {
-      final response = await client.auth.signUp(
+      debugPrint('📝 Attempting registration for: $email');
+      
+      // Create Appwrite account
+      final user = await _appwrite.account.create(
+        userId: ID.unique(),
         email: email,
         password: password,
-        data: {'name': name, 'phone': phone},
-        emailRedirectTo: _getAppDeepLinkScheme(),
+        name: name,
+      );
+      debugPrint('✅ Appwrite account created: ${user.email} (ID: ${user.$id})');
+
+      // Create session immediately
+      final session = await _appwrite.account.createEmailPasswordSession(
+        email: email,
+        password: password,
+      );
+      debugPrint('✅ Session created: ${session.$id}');
+
+      // Create user profile as ADMIN
+      _currentUser = AppUser.User(
+        id: user.$id,
+        name: name,
+        email: user.email ?? '',
+        phone: phone ?? '',
+        userType: 'admin', // Users registering directly are ADMIN
+        role: 'owner',
+        createdAt: DateTime.now(),
       );
 
-      final user = response.user;
-      if (user != null) {
-        _token = response.session?.accessToken;
+      // Create user profile in database
+      await _createUserProfile(_currentUser!);
+      debugPrint('✅ User profile created in database');
+      
+      // Save user data to local storage
+      await _saveAuthData();
+      debugPrint('✅ User data saved to local storage');
 
-        // Create user profile as ADMIN
-        _currentUser = AppUser.User(
-          id: user.id,
-          name: name,
-          email: user.email ?? '',
-          phone: phone ?? '',
-          userType: 'admin', // Users registering directly are ADMIN
-          role: 'owner',
-          createdAt: DateTime.now(),
-        );
-
-        // Only save auth data if session exists (auto-confirm enabled in Supabase)
-        if (_token != null) {
-          await _createUserProfile(_currentUser!);
-          await _saveAuthData();
-        }
-
-        return {
-          'success': true,
-          'user': _currentUser,
-          'requiresConfirmation': response.session == null,
-        };
-      } else {
-        return {'success': false, 'error': 'Registration failed'};
-      }
+      return {
+        'success': true,
+        'user': _currentUser,
+        'requiresConfirmation': false, // Appwrite doesn't require email confirmation by default
+      };
     } catch (e) {
-      debugPrint('Error registering: $e');
-      return {'success': false, 'error': e.toString()};
+      debugPrint('❌ Error registering: $e');
+      return {
+        'success': false,
+        'error': _getErrorMessage(e),
+      };
     }
   }
 
@@ -111,53 +138,67 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final response = await client.auth.signInWithPassword(
+      debugPrint('🔐 Attempting login for: $email');
+      
+      // Create email password session
+      await _appwrite.account.createEmailPasswordSession(
         email: email,
         password: password,
       );
+      debugPrint('✅ Session created');
 
-      final user = response.user;
-      if (user != null) {
-        _token = response.session?.accessToken;
+      // Get current user
+      final user = await _appwrite.account.get();
+      debugPrint('✅ Appwrite user: ${user.email} (ID: ${user.$id})');
 
-        // Load user profile from database to get user type
-        await _loadUserProfile();
+      // Load user profile from database to get user type
+      await _loadUserProfile();
 
-        if (_currentUser == null) {
-          // If no profile exists, create one (legacy user or first login)
-          _currentUser = AppUser.User(
-            id: user.id,
-            name: user.userMetadata?['name'] ?? '',
-            email: user.email ?? '',
-            phone: user.userMetadata?['phone'] ?? '',
-            userType: 'admin', // Default to admin for existing users
-            role: 'owner',
-            createdAt: DateTime.now(),
-          );
-          await _createUserProfile(_currentUser!);
-        }
-
-        // Update last login
-        await _updateLastLogin();
-        await _saveAuthData();
-
-        return {'success': true, 'user': _currentUser};
+      if (_currentUser == null) {
+        // If no profile exists, create one (first login or legacy user)
+        _currentUser = AppUser.User(
+          id: user.$id,
+          name: user.name ?? '',
+          email: user.email ?? '',
+          phone: user.phone ?? '',
+          userType: 'admin', // Default to admin for existing users
+          role: 'owner',
+          createdAt: DateTime.now(),
+        );
+        await _createUserProfile(_currentUser!);
+        debugPrint('✅ Created user profile in database');
       } else {
-        return {'success': false, 'error': 'Login failed'};
+        debugPrint('✅ Loaded existing user profile: ${_currentUser?.email}');
       }
+
+      // Update last login
+      await _updateLastLogin();
+      
+      // Save user data to local storage
+      await _saveAuthData();
+      debugPrint('✅ User data saved to local storage');
+
+      return {'success': true, 'user': _currentUser};
     } catch (e) {
-      debugPrint('Error logging in: $e');
-      return {'success': false, 'error': e.toString()};
+      debugPrint('❌ Error logging in: $e');
+      return {
+        'success': false,
+        'error': _getErrorMessage(e),
+      };
     }
   }
 
   /// Logout user
   Future<void> logout() async {
     try {
-      await client.auth.signOut();
+      // Delete current session
+      await _appwrite.account.deleteSession(sessionId: 'current');
     } catch (e) {
       debugPrint('Error during logout: $e');
     }
+
+    // Delete all sessions (optional - uncomment if you want to logout from all devices)
+    // await _appwrite.account.deleteSessions();
 
     _token = null;
     _currentUser = null;
@@ -170,39 +211,58 @@ class AuthService {
   /// Create user profile in database
   Future<void> _createUserProfile(AppUser.User user) async {
     try {
-      await client.from('user_profiles').upsert({
-        'id': user.id,
-        'name': user.name,
-        'email': user.email,
-        'phone': user.phone,
-        'avatar': user.avatar,
-        'user_type': user.userType,
-        'role': user.role,
-        'parent_user_id': user.parentUserId,
-        'family_id': user.familyId,
-        'relation': user.relation,
-        'is_active': user.isActive,
-      });
+      await _appwrite.databases.createDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: user.id!,
+        data: {
+          'id': user.id,
+          'name': user.name ?? '',
+          'email': user.email ?? '',
+          'phone': user.phone ?? '',
+          'avatar': user.avatar ?? '',
+          'user_type': user.userType,
+          'role': user.role,
+          'parent_user_id': user.parentUserId ?? '',
+          'family_id': user.familyId ?? '',
+          'relation': user.relation ?? '',
+          'is_active': user.isActive,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        permissions: [
+          Permission.read(Role.user(user.id!)),
+          Permission.update(Role.user(user.id!)),
+          Permission.delete(Role.user(user.id!)),
+        ],
+      );
     } catch (e) {
       debugPrint('Error creating user profile: $e');
+      // Profile might already exist, try update instead
+      await _updateUserProfileInDb(user.id!, {
+        'name': user.name ?? '',
+        'email': user.email ?? '',
+        'phone': user.phone ?? '',
+        'avatar': user.avatar ?? '',
+        'user_type': user.userType,
+        'role': user.role,
+      });
     }
   }
 
   /// Load user profile from database
   Future<void> _loadUserProfile() async {
     try {
-      final userId = client.auth.currentUser?.id;
+      final userId = _appwrite.currentUserId;
       if (userId == null) return;
 
-      final response = await client
-          .from('user_profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      final document = await _appwrite.databases.getDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: userId,
+      );
 
-      if (response != null) {
-        _currentUser = AppUser.User.fromJson(response);
-      }
+      _currentUser = AppUser.User.fromJson({...document.data, 'id': document.$id});
     } catch (e) {
       debugPrint('Error loading user profile: $e');
     }
@@ -211,15 +271,34 @@ class AuthService {
   /// Update last login timestamp
   Future<void> _updateLastLogin() async {
     try {
-      final userId = client.auth.currentUser?.id;
+      final userId = _appwrite.currentUserId;
       if (userId == null) return;
 
-      await client
-          .from('user_profiles')
-          .update({'last_login': DateTime.now().toIso8601String()})
-          .eq('id', userId);
+      await _appwrite.databases.updateDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: userId,
+        data: {
+          'last_login': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
       debugPrint('Error updating last login: $e');
+    }
+  }
+
+  /// Update user profile in database
+  Future<void> _updateUserProfileInDb(String userId, Map<String, dynamic> data) async {
+    try {
+      data['updated_at'] = DateTime.now().toIso8601String();
+      await _appwrite.databases.updateDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: userId,
+        data: data,
+      );
+    } catch (e) {
+      debugPrint('Error updating user profile in DB: $e');
     }
   }
 
@@ -230,71 +309,106 @@ class AuthService {
     String? avatar,
   }) async {
     try {
+      final userId = _appwrite.currentUserId;
+      if (userId == null) {
+        return {'success': false, 'error': 'User not logged in'};
+      }
+
+      // Update Appwrite account
+      if (name != null) {
+        await _appwrite.account.updateName(name: name);
+      }
+
+      // Update user_profiles table
       final updates = <String, dynamic>{};
       if (name != null) updates['name'] = name;
       if (phone != null) updates['phone'] = phone;
       if (avatar != null) updates['avatar'] = avatar;
+      
+      await _updateUserProfileInDb(userId, updates);
 
-      // Update Supabase auth metadata
-      final response = await client.auth.updateUser(
-        UserAttributes(data: updates),
+      // Update local user object
+      _currentUser = _currentUser?.copyWith(
+        name: name ?? _currentUser?.name,
+        phone: phone ?? _currentUser?.phone,
+        avatar: avatar ?? _currentUser?.avatar,
       );
+      await _saveAuthData();
 
-      // Also update user_profiles table
-      final userId = client.auth.currentUser?.id;
-      if (userId != null) {
-        await client.from('user_profiles').update(updates).eq('id', userId);
-      }
-
-      final user = response.user;
-      if (user != null) {
-        _currentUser = _currentUser?.copyWith(
-          name: name ?? _currentUser?.name,
-          phone: phone ?? _currentUser?.phone,
-          avatar: avatar ?? _currentUser?.avatar,
-        );
-        await _saveAuthData();
-        return {'success': true, 'user': _currentUser};
-      } else {
-        return {'success': false, 'error': 'Update failed'};
-      }
+      return {'success': true, 'user': _currentUser};
     } catch (e) {
       debugPrint('Error updating profile: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
   /// Change password
   Future<Map<String, dynamic>> changePassword({
-    required String currentPassword,
     required String newPassword,
   }) async {
     try {
-      await client.auth.updateUser(UserAttributes(password: newPassword));
+      await _appwrite.account.updatePassword(
+        password: newPassword,
+        oldPassword: null, // Appwrite doesn't require old password by default
+      );
       return {'success': true, 'message': 'Password changed successfully'};
     } catch (e) {
       debugPrint('Error changing password: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
-  /// Helper method to get the app's deep link scheme
-  String _getAppDeepLinkScheme() {
-    return 'lifesync://login-callback';
+  /// Request password reset
+  Future<Map<String, dynamic>> resetPassword(String email) async {
+    try {
+      // Get the app's origin URL for password reset redirect
+      final origin = 'lifesync://'; // Deep link scheme
+      
+      await _appwrite.account.createRecovery(
+        email: email,
+        url: origin,
+      );
+      return {
+        'success': true,
+        'message': 'Password reset email sent to $email',
+      };
+    } catch (e) {
+      debugPrint('Error resetting password: $e');
+      return {'success': false, 'error': _getErrorMessage(e)};
+    }
+  }
+
+  /// Helper method to get error messages
+  String _getErrorMessage(dynamic error) {
+    if (error is AppwriteException) {
+      switch (error.code) {
+        case 401:
+          return 'Invalid email or password';
+        case 404:
+          return 'User not found';
+        case 409:
+          return 'Email already in use';
+        case 429:
+          return 'Too many attempts. Please try again later';
+        default:
+          return error.message ?? 'An error occurred';
+      }
+    }
+    return error.toString();
   }
 
   /// Save auth data to local storage
   Future<void> _saveAuthData() async {
     final prefs = await SharedPreferences.getInstance();
-    if (_token != null) {
-      await prefs.setString(_tokenKey, _token!);
-    }
+    // Note: Appwrite manages sessions internally, we just save user data
     if (_currentUser != null) {
       await prefs.setString(_userKey, jsonEncode(_currentUser!.toJson()));
     }
   }
 
-  // ===== FAMILY MEMBER (CLIENT) USER MANAGEMENT =====
+  // ============================================================================
+  // FAMILY MEMBER (CLIENT) USER MANAGEMENT
+  // ============================================================================
 
   /// Create a family member with login credentials (CLIENT user)
   /// Only ADMIN users can create CLIENT users
@@ -314,82 +428,79 @@ class AuthService {
     }
 
     try {
-      // First, we need to use Supabase Admin API or Edge Functions
-      // For now, we'll create the user through the normal signup flow
-      // but mark them as a client user in the profile
-
       final adminId = _currentUser?.id;
       final familyId =
           _currentUser?.familyId ??
           adminId; // Use admin's ID as family ID if none exists
 
-      // Create the auth user (they'll need to confirm email separately)
-      final response = await client.auth.signUp(
+      // Create the auth user
+      final user = await _appwrite.account.create(
+        userId: ID.unique(),
         email: email,
         password: password,
-        data: {
-          'name': name,
-          'phone': phone,
-          'user_type': 'client',
-          'parent_user_id': adminId,
-        },
+        name: name,
       );
 
-      final newUser = response.user;
-      if (newUser != null) {
-        // Create user profile as CLIENT
-        final clientProfile = AppUser.User(
-          id: newUser.id,
-          name: name,
-          email: email,
-          phone: phone,
-          userType: 'client', // This is a CLIENT user
-          role: 'member',
-          parentUserId: adminId, // Link to the admin who created them
-          familyId: familyId,
-          relation: relation,
-          createdAt: DateTime.now(),
-        );
+      // Create user profile as CLIENT
+      final clientProfile = AppUser.User(
+        id: user.$id,
+        name: name,
+        email: email,
+        phone: phone,
+        userType: 'client', // This is a CLIENT user
+        role: 'member',
+        parentUserId: adminId, // Link to the admin who created them
+        familyId: familyId,
+        relation: relation,
+        createdAt: DateTime.now(),
+      );
 
-        // Insert profile into database
-        await client.from('user_profiles').insert({
-          'id': newUser.id,
+      // Insert profile into database
+      await _appwrite.databases.createDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: user.$id,
+        data: {
+          'id': user.$id,
           'name': name,
           'email': email,
-          'phone': phone,
+          'phone': phone ?? '',
           'user_type': 'client',
           'role': 'member',
           'parent_user_id': adminId,
           'family_id': familyId,
-          'relation': relation,
+          'relation': relation ?? '',
           'is_active': true,
-        });
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        permissions: [
+          Permission.read(Role.user(user.$id)),
+          Permission.update(Role.user(user.$id)),
+          Permission.delete(Role.user(user.$id)),
+        ],
+      );
 
-        // Update admin's family_id if not set
-        if (_currentUser?.familyId == null) {
-          await client
-              .from('user_profiles')
-              .update({'family_id': familyId})
-              .eq('id', adminId!);
-          _currentUser = _currentUser?.copyWith(familyId: familyId);
-          await _saveAuthData();
-        }
-
-        return {
-          'success': true,
-          'user': clientProfile,
-          'message':
-              'Family member account created. They will need to verify their email.',
-        };
-      } else {
-        return {
-          'success': false,
-          'error': 'Failed to create family member account',
-        };
+      // Update admin's family_id if not set
+      if (_currentUser?.familyId == null) {
+        await _appwrite.databases.updateDocument(
+          databaseId: AppwriteService.databaseId,
+          collectionId: AppwriteService.userProfilesCollection,
+          documentId: adminId!,
+          data: {'family_id': familyId},
+        );
+        _currentUser = _currentUser?.copyWith(familyId: familyId);
+        await _saveAuthData();
       }
+
+      return {
+        'success': true,
+        'user': clientProfile,
+        'message': 'Family member account created successfully',
+      };
     } catch (e) {
       debugPrint('Error creating family member user: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
@@ -401,14 +512,17 @@ class AuthService {
       final adminId = _currentUser?.id;
       if (adminId == null) return [];
 
-      final response = await client
-          .from('user_profiles')
-          .select()
-          .eq('parent_user_id', adminId)
-          .eq('user_type', 'client');
+      final documentList = await _appwrite.databases.listDocuments(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        queries: [
+          'parent_user_id="$adminId"',
+          'user_type="client"',
+        ],
+      );
 
-      return (response as List)
-          .map((json) => AppUser.User.fromJson(json))
+      return documentList.documents
+          .map((doc) => AppUser.User.fromJson({...doc.data, 'id': doc.$id}))
           .toList();
     } catch (e) {
       debugPrint('Error getting family member users: $e');
@@ -438,16 +552,17 @@ class AuthService {
       if (relation != null) updates['relation'] = relation;
       if (isActive != null) updates['is_active'] = isActive;
 
-      await client
-          .from('user_profiles')
-          .update(updates)
-          .eq('id', memberId)
-          .eq('parent_user_id', _currentUser?.id ?? '');
+      await _appwrite.databases.updateDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: memberId,
+        data: updates,
+      );
 
       return {'success': true, 'message': 'Family member updated successfully'};
     } catch (e) {
       debugPrint('Error updating family member user: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
@@ -470,16 +585,20 @@ class AuthService {
 
     try {
       // Soft delete by deactivating the account
-      await client
-          .from('user_profiles')
-          .update({'is_active': false})
-          .eq('id', memberId)
-          .eq('parent_user_id', _currentUser?.id ?? '');
+      await _appwrite.databases.updateDocument(
+        databaseId: AppwriteService.databaseId,
+        collectionId: AppwriteService.userProfilesCollection,
+        documentId: memberId,
+        data: {'is_active': false},
+      );
 
-      return {'success': true, 'message': 'Family member account deactivated'};
+      return {
+        'success': true,
+        'message': 'Family member account deactivated',
+      };
     } catch (e) {
       debugPrint('Error deleting family member user: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
@@ -495,17 +614,54 @@ class AuthService {
     }
 
     try {
-      await client.auth.resetPasswordForEmail(
-        memberEmail,
-        redirectTo: _getAppDeepLinkScheme(),
-      );
+      await resetPassword(memberEmail);
       return {
         'success': true,
         'message': 'Password reset email sent to $memberEmail',
       };
     } catch (e) {
       debugPrint('Error resetting family member password: $e');
-      return {'success': false, 'error': e.toString()};
+      return {'success': false, 'error': _getErrorMessage(e)};
+    }
+  }
+
+  /// Get current session
+  Future<Map<String, dynamic>?> getCurrentSession() async {
+    try {
+      final session = await _appwrite.account.getSession(sessionId: 'current');
+      // Return session properties as a map
+      return {
+        'userId': session.userId,
+        'provider': session.provider,
+        'expire': session.expire,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get all active sessions
+  Future<List<Map<String, dynamic>>> getSessions() async {
+    try {
+      final sessions = await _appwrite.account.listSessions();
+      return sessions.sessions.map((s) => {
+        'userId': s.userId,
+        'provider': s.provider,
+        'expire': s.expire,
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting sessions: $e');
+      return [];
+    }
+  }
+
+  /// Delete a specific session
+  Future<void> deleteSession(String sessionId) async {
+    try {
+      await _appwrite.account.deleteSession(sessionId: sessionId);
+    } catch (e) {
+      debugPrint('Error deleting session: $e');
+      rethrow;
     }
   }
 }

@@ -38,9 +38,9 @@ class _BMICalculatorDialogState extends State<BMICalculatorDialog> {
 
       setState(() {
         _bmiResult = bmi;
-        if (bmi < 18.5)
+        if (bmi < 18.5) {
           _bmiCategory = 'Underweight';
-        else if (bmi < 25)
+        } else if (bmi < 25)
           _bmiCategory = 'Normal';
         else if (bmi < 30)
           _bmiCategory = 'Overweight';

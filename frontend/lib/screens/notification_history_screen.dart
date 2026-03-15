@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/notification_service.dart';
 import '../models/notification_item.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 import 'package:intl/intl.dart';
 
 class NotificationHistoryScreen extends StatefulWidget {
@@ -98,12 +99,17 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Notifications',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            fontSize: Responsive.getFontSize(context, FontSizeType.title),
+          ),
         ),
         centerTitle: true,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -120,46 +126,48 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notifications.isEmpty
-          ? _buildEmptyState()
+          ? _buildEmptyState(context)
           : RefreshIndicator(
               onRefresh: _loadHistory,
               color: AppTheme.primaryColor,
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 32 : 16,
                   vertical: 10,
                 ),
                 itemCount: _notifications.length,
                 itemBuilder: (context, index) {
-                  return _buildNotificationCard(_notifications[index]);
+                  return _buildNotificationCard(_notifications[index], context);
                 },
               ),
             ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(30),
+            padding: EdgeInsets.all(isDesktop ? 40 : 30),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: FaIcon(
               FontAwesomeIcons.bellSlash,
-              size: 40,
+              size: isDesktop ? 56 : 40,
               color: AppTheme.primaryColor.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isDesktop ? 28 : 20),
           Text(
             'No notifications yet',
             style: GoogleFonts.inter(
-              fontSize: 18,
+              fontSize: Responsive.getFontSize(context, FontSizeType.title),
               fontWeight: FontWeight.bold,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
@@ -170,7 +178,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: AppTheme.textTertiary,
-              fontSize: 14,
+              fontSize: Responsive.getFontSize(context, FontSizeType.body),
               height: 1.5,
             ),
           ),
@@ -179,7 +187,9 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
     );
   }
 
-  Widget _buildNotificationCard(NotificationItem item) {
+  Widget _buildNotificationCard(NotificationItem item, BuildContext context) {
+    final isDesktop = Responsive.isDesktop(context);
+    
     final IconData icon;
     final Color color;
 
@@ -219,8 +229,8 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        margin: const EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(right: isDesktop ? 24 : 20),
+        margin: EdgeInsets.only(bottom: isDesktop ? 16 : 12),
         decoration: BoxDecoration(
           color: AppTheme.errorColor,
           borderRadius: BorderRadius.circular(16),
@@ -235,7 +245,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
         _deleteItem(item.id);
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isDesktop ? 16 : 12),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -256,19 +266,23 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             },
             borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isDesktop ? 20 : 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(isDesktop ? 14 : 12),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: FaIcon(icon, size: 18, color: color),
+                    child: FaIcon(
+                      icon,
+                      size: isDesktop ? 22 : 18,
+                      color: color,
+                    ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: isDesktop ? 20 : 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,31 +297,31 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 15,
+                                  fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
                                   color: Theme.of(
                                     context,
                                   ).textTheme.bodyLarge?.color,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: isDesktop ? 12 : 8),
                             Text(
                               _formatTime(item.timestamp),
                               style: GoogleFonts.inter(
-                                fontSize: 11,
+                                fontSize: Responsive.getFontSize(context, FontSizeType.small),
                                 color: AppTheme.textTertiary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: isDesktop ? 8 : 6),
                         Text(
                           item.body,
                           style: GoogleFonts.inter(
                             color: Theme.of(context).textTheme.bodyMedium?.color
                                 ?.withValues(alpha: 0.8),
-                            fontSize: 13,
+                            fontSize: Responsive.getFontSize(context, FontSizeType.body),
                             height: 1.4,
                           ),
                         ),

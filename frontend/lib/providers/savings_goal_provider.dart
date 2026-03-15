@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/savings_goal.dart';
-import '../services/supabase_service.dart';
+import '../repositories/all_repositories.dart';
 
+/// Savings Goal Provider - State management for savings goals
+/// 
+/// Updated to use Appwrite backend via SavingsGoalsRepository.
 class SavingsGoalProvider with ChangeNotifier {
-  final SupabaseService _supabase = SupabaseService();
+  final SavingsGoalsRepository _repository = SavingsGoalsRepository();
 
   List<SavingsGoal> _savingsGoals = [];
   bool _isLoading = false;
@@ -20,8 +23,7 @@ class SavingsGoalProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _supabase.getSavingsGoals(); // Add userId filter if needed
-      _savingsGoals = data.map((s) => SavingsGoal.fromJson(s)).toList();
+      _savingsGoals = await _repository.getAll();
     } catch (e) {
       _error = e.toString();
       debugPrint('Error loading savings goals: $e');
@@ -36,8 +38,7 @@ class SavingsGoalProvider with ChangeNotifier {
 
   Future<void> addSavingsGoal(SavingsGoal goal) async {
     try {
-      final response = await _supabase.createSavingsGoal(goal.toJson());
-      final newGoal = SavingsGoal.fromJson(response);
+      final newGoal = await _repository.create(goal);
       _savingsGoals.add(newGoal);
       notifyListeners();
     } catch (e) {
@@ -51,8 +52,7 @@ class SavingsGoalProvider with ChangeNotifier {
 
   Future<void> updateSavingsGoal(SavingsGoal goal) async {
     try {
-      final response = await _supabase.updateSavingsGoal(goal.id!, goal.toJson());
-      final updatedGoal = SavingsGoal.fromJson(response);
+      final updatedGoal = await _repository.update(goal.id!, goal);
       final index = _savingsGoals.indexWhere((s) => s.id == goal.id);
       if (index != -1) {
         _savingsGoals[index] = updatedGoal;
@@ -69,7 +69,7 @@ class SavingsGoalProvider with ChangeNotifier {
 
   Future<void> deleteSavingsGoal(String id) async {
     try {
-      await _supabase.deleteSavingsGoal(id);
+      await _repository.delete(id);
       _savingsGoals.removeWhere((s) => s.id == id);
       notifyListeners();
     } catch (e) {
@@ -83,14 +83,11 @@ class SavingsGoalProvider with ChangeNotifier {
 
   Future<void> addContribution(String id, double amount) async {
     try {
-      // Update the goal's current amount by adding the contribution
       final goal = _savingsGoals.firstWhere((s) => s.id == id);
       goal.currentAmount += amount;
 
       // Update the goal in the database
-      final updatedGoalData = goal.toJson();
-      final response = await _supabase.updateSavingsGoal(id, updatedGoalData);
-      final updatedGoal = SavingsGoal.fromJson(response);
+      final updatedGoal = await _repository.update(id, goal);
 
       final index = _savingsGoals.indexWhere((s) => s.id == id);
       if (index != -1) {
