@@ -143,6 +143,7 @@ class GlassContainer extends StatelessWidget {
               width: 1,
             ),
       ),
+      child: child,
     );
 
     return ClipRRect(
@@ -255,6 +256,7 @@ class PremiumTextField extends StatelessWidget {
   final int? maxLines;
   final bool readOnly;
   final VoidCallback? onTap;
+  final bool autofocus;
 
   const PremiumTextField({
     super.key,
@@ -270,6 +272,7 @@ class PremiumTextField extends StatelessWidget {
     this.maxLines = 1,
     this.readOnly = false,
     this.onTap,
+    this.autofocus = false,
   });
 
   @override
@@ -280,6 +283,7 @@ class PremiumTextField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
+      autofocus: autofocus,
       keyboardType: keyboardType,
       validator: validator,
       onChanged: onChanged,
@@ -438,6 +442,7 @@ class PremiumGauge extends StatelessWidget {
 /// Floating Action Button (Premium Style)
 class PremiumFAB extends StatelessWidget {
   final IconData icon;
+  final String? label;
   final VoidCallback? onPressed;
   final Color? backgroundColor;
   final Color iconColor;
@@ -447,6 +452,7 @@ class PremiumFAB extends StatelessWidget {
   const PremiumFAB({
     super.key,
     required this.icon,
+    this.label,
     this.onPressed,
     this.backgroundColor,
     this.iconColor = Colors.white,
@@ -456,6 +462,19 @@ class PremiumFAB extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (label != null) {
+      return FloatingActionButton.extended(
+        onPressed: onPressed,
+        icon: isLoading 
+          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+          : Icon(icon, color: iconColor),
+        label: Text(label!, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: backgroundColor ?? AppTheme.primaryColor,
+        elevation: 8,
+        tooltip: tooltip,
+      );
+    }
+
     return FloatingActionButton(
       onPressed: onPressed,
       backgroundColor: backgroundColor ?? AppTheme.primaryColor,
@@ -641,6 +660,95 @@ class PremiumSectionHeader extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Premium Expired Popup Dialog
+class PremiumExpiredPopup extends StatelessWidget {
+  final VoidCallback onRenew;
+  final VoidCallback onDismiss;
+
+  const PremiumExpiredPopup({
+    super.key,
+    required this.onRenew,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      elevation: 0,
+      child: GlassContainer(
+        borderRadius: 32,
+        backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header Image/Icon
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.star_outline_rounded,
+                size: 64,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Text Content
+            Text(
+              'Premium Expired',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1A1A1A),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Your premium benefits have expired. Renew now to get back your ad-free experience, AI insights, and unlimited tracking.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            
+            // Action Buttons
+            PremiumButton(
+              text: 'Renew Premium',
+              fullWidth: true,
+              onPressed: onRenew,
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onDismiss,
+              child: Text(
+                'Maybe Later',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[500] : Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

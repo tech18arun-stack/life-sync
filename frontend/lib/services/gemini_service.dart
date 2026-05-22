@@ -11,7 +11,7 @@ class GeminiService extends ChangeNotifier {
   static const String _aiEnabledPref = 'ai_features_enabled';
 
   // Use a stable, capable model
-  static const String _modelName = 'gemini-1.5-flash';
+  static const String _modelName = 'gemini-2.5-flash';
 
   GenerativeModel? _model;
   String? _apiKey;
@@ -534,6 +534,40 @@ Format:
       return response.text ?? 'No suggestions.';
     } catch (e) {
       throw Exception('Failed to suggest reminders: ${e.toString()}');
+    }
+  }
+
+  // Categorize a transaction description
+  Future<String> categorizeTransaction(String description) async {
+    if (_model == null) return 'Other';
+
+    final prompt = '''
+Categorize the following transaction description into one of these categories:
+Food & Dining, Travel, Shopping, Bills & Utilities, Entertainment, Health, Investment, Insurance, Salary, Education, Other.
+
+Transaction: "$description"
+
+Return ONLY the category name.
+''';
+
+    try {
+      final response = await _model!.generateContent([Content.text(prompt)]);
+      final category = response.text?.trim() ?? 'Other';
+      
+      // Basic validation to ensure it's one of the expected categories
+      final validCategories = [
+        'Food & Dining', 'Travel', 'Shopping', 'Bills & Utilities', 
+        'Entertainment', 'Health', 'Investment', 'Insurance', 'Salary', 'Education'
+      ];
+      
+      if (validCategories.any((cat) => category.contains(cat))) {
+        return validCategories.firstWhere((cat) => category.contains(cat));
+      }
+      
+      return 'Other';
+    } catch (e) {
+      debugPrint('Gemini categorization error: $e');
+      return 'Other';
     }
   }
 

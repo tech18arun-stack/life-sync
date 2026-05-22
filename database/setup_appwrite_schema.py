@@ -3,10 +3,10 @@
 Appwrite Schema Setup Script
 
 Configuration via environment variables:
-- APPWRITE_ENDPOINT: API endpoint URL (default: https://api.edizo.in/v1)
-- APPWRITE_PROJECT_ID: Project ID (default: 69aa6e89000b08e67a76)
+- APPWRITE_ENDPOINT: API endpoint URL (default: https://api.websitescorp.com/v1)
+- APPWRITE_PROJECT_ID: Project ID (default: 69e45bf20039aebb88ac)
 - APPWRITE_API_KEY: API Key (server-side only, required)
-- APPWRITE_DATABASE_ID: Database ID (default: Life_db)
+- APPWRITE_DATABASE_ID: Database ID (default: 69e45c7d001156126993)
 - APPWRITE_DATABASE_NAME: Database Name (default: Life_db)
 
 Usage:
@@ -49,10 +49,10 @@ load_env()
 # SERVER CONFIG (from environment variables)
 # ================================
 
-ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://api.edizo.in/v1")
-PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "69aa6e89000b08e67a76")
+ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://api.websitescorp.com/v1")
+PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "69e45bf20039aebb88ac")
 API_KEY = os.getenv("APPWRITE_API_KEY")
-DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "Life_db")
+DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "69e45c7d001156126993")
 DATABASE_NAME = os.getenv("APPWRITE_DATABASE_NAME", "Life_db")
 
 # Admin Configuration
@@ -88,6 +88,9 @@ collections = [
             ("family_id","string",100,False),
             ("relation","string",100,False),
             ("is_active","boolean",None,True),
+            ("is_premium","boolean",None,False),
+            ("premium_expiry_date","datetime",None,False),
+            ("plan_type","string",50,False),
             ("last_login","datetime",None,False),
             ("created_at","datetime",None,True),
             ("updated_at","datetime",None,True),
@@ -223,24 +226,6 @@ collections = [
     },
 
     {
-        "id":"health_records",
-        "attributes":[
-            ("user_id","string",100,True),
-            ("member_name","string",255,True),
-            ("record_type","string",100,True),
-            ("date","date",None,True),
-            ("description","string",1000,False),
-            ("diagnosis","string",1000,False),
-            ("treatment","string",1000,False),
-            ("doctor_name","string",255,False),
-            ("hospital_name","string",255,False),
-            ("notes","string",1000,False),
-            ("metadata","string",50000,False),
-            ("created_at","datetime",None,True),
-            ("updated_at","datetime",None,True),
-        ]
-    },
-    {
         "id":"subscriptions",
         "attributes":[
             ("user_id","string",100,True),
@@ -262,6 +247,42 @@ collections = [
             ("service_name","string",100,False),
             ("duration_seconds","integer",None,False),
             ("timestamp","datetime",None,True),
+        ]
+    },
+    {
+        "id": "habits",
+        "attributes": [
+            ("user_id", "string", 100, True),
+            ("title", "string", 255, True),
+            ("icon", "string", 100, True),
+            ("color", "string", 50, True),
+            ("frequency", "string", 50, True),
+            ("streak", "integer", None, True),
+            ("last_completed", "datetime", None, False),
+            ("created_at", "datetime", None, True),
+            ("updated_at", "datetime", None, True),
+        ]
+    },
+    {
+        "id": "habit_logs",
+        "attributes": [
+            ("user_id", "string", 100, True),
+            ("habit_id", "string", 100, True),
+            ("date", "date", None, True),
+            ("status", "string", 50, True),
+            ("created_at", "datetime", None, True),
+        ]
+    },
+    {
+        "id": "moods",
+        "attributes": [
+            ("user_id", "string", 100, True),
+            ("score", "integer", None, True),
+            ("note", "string", 1000, False),
+            ("factors", "string", 1000, False),
+            ("date", "datetime", None, True),
+            ("created_at", "datetime", None, True),
+            ("updated_at", "datetime", None, True),
         ]
     }
 
@@ -355,33 +376,6 @@ for col in collections:
             pass
 
 
-# ================================
-# CREATE STORAGE BUCKET
-# ================================
-
-try:
-
-    storage.get_bucket("health-images")
-
-    print("Bucket exists")
-
-except:
-
-    storage.create_bucket(
-        bucket_id="health-images",
-        name="health-images",
-        permissions=[
-            Permission.read(Role.users()),
-            Permission.create(Role.users()),
-            Permission.update(Role.users()),
-            Permission.delete(Role.users())
-        ],
-        file_security=True,
-        maximum_file_size=5242880,
-        allowed_file_extensions=["png","jpg","jpeg","gif","webp"]
-    )
-
-    print("Bucket created")
 # ================================
 # SYNC ALL USERS TO DATABASE
 # ================================

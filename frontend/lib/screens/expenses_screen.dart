@@ -8,9 +8,11 @@ import 'package:intl/intl.dart';
 import '../providers/financial_data_manager.dart';
 import '../models/expense.dart';
 import '../utils/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../widgets/add_expense_dialog.dart';
 import '../services/startio_ads.dart';
+import '../services/gemini_service.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -35,7 +37,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
     final textSecondary =
         Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
-
 
     // Get expenses based on selected period
     final now = DateTime.now();
@@ -89,11 +90,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-              color: textPrimary,
-            ),
+            icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textPrimary),
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Text(
@@ -146,168 +143,208 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ),
         ),
         body: Column(
-          children: [
-            // Search and Summary Container
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Column(
-                children: [
-                  // Search Bar with improved design
-                  Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      onChanged: (value) => setState(() => _searchQuery = value),
-                      style: GoogleFonts.inter(color: textPrimary),
-                      decoration: InputDecoration(
-                        hintText: 'Search expenses...',
-                        hintStyle: GoogleFonts.inter(color: textSecondary, fontSize: 14),
-                        prefixIcon: Icon(Icons.search, color: textSecondary, size: 20),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear, color: textSecondary, size: 18),
-                                onPressed: () => setState(() => _searchQuery = ''),
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: cardColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          children:
+              [
+                    // Search and Summary Container
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Filter Row - Chip-like style
-                  Row(
-                    children: [
-                      _buildFilterChip(
-                        label: _selectedPeriod,
-                        icon: Icons.calendar_today,
-                        onTap: () => _showPeriodPicker(context),
-                        textPrimary: textPrimary,
-                        cardColor: cardColor,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: _selectedCategory,
-                        icon: Icons.category_outlined,
-                        onTap: () => _showCategoryPicker(context, categoryExpenses.keys.toList()),
-                        textPrimary: textPrimary,
-                        cardColor: cardColor,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Premium Total Card (Aligned with Home Screen style)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.sunsetGradient,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.errorColor.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          right: -10,
-                          top: -10,
-                          child: Icon(
-                            Icons.trending_down,
-                            color: Colors.white.withOpacity(0.1),
-                            size: 80,
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Total Spent',
-                              style: GoogleFonts.inter(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
+                      child: Column(
+                        children: [
+                          // Search Bar with improved design
+                          Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${NumberFormat('#,##,##0.00', 'en_IN').format(total)}',
-                              style: GoogleFonts.inter(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: -1,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '${filteredExpenses.length} transactions',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                            child: TextField(
+                              onChanged: (value) =>
+                                  setState(() => _searchQuery = value),
+                              style: GoogleFonts.inter(color: textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'Search expenses...',
+                                hintStyle: GoogleFonts.inter(
+                                  color: textSecondary,
+                                  fontSize: 14,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: textSecondary,
+                                  size: 20,
+                                ),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.clear,
+                                          color: textSecondary,
+                                          size: 18,
+                                        ),
+                                        onPressed: () =>
+                                            setState(() => _searchQuery = ''),
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: cardColor,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.withOpacity(0.1),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.withOpacity(0.1),
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 16,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                          ),
+                          const SizedBox(height: 12),
 
-            // Content List
-            Expanded(
-              child: filteredExpenses.isEmpty
-                  ? _buildEmptyState(context, textPrimary, textSecondary)
-                  : TabBarView(
-                      children: [
-                        _buildExpenseList(
-                          filteredExpenses,
-                          financialManager,
-                          context,
-                        ),
-                        _buildCategoriesView(categoryExpenses, total, context),
-                        _buildRecentView(
-                          filteredExpenses,
-                          financialManager,
-                          context,
-                        ),
-                      ],
+                          // Filter Row - Chip-like style
+                          Row(
+                            children: [
+                              _buildFilterChip(
+                                label: _selectedPeriod,
+                                icon: Icons.calendar_today,
+                                onTap: () => _showPeriodPicker(context),
+                                textPrimary: textPrimary,
+                                cardColor: cardColor,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFilterChip(
+                                label: _selectedCategory,
+                                icon: Icons.category_outlined,
+                                onTap: () => _showCategoryPicker(
+                                  context,
+                                  categoryExpenses.keys.toList(),
+                                ),
+                                textPrimary: textPrimary,
+                                cardColor: cardColor,
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Premium Total Card (Aligned with Home Screen style)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.sunsetGradient,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.errorColor.withOpacity(0.3),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  right: -10,
+                                  top: -10,
+                                  child: Icon(
+                                    Icons.trending_down,
+                                    color: Colors.white.withOpacity(0.1),
+                                    size: 80,
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Spent',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '₹${NumberFormat('#,##,##0.00', 'en_IN').format(total)}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        '${filteredExpenses.length} transactions',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-            ),
-          ],
+
+                    // Content List
+                    Expanded(
+                      child: filteredExpenses.isEmpty
+                          ? _buildEmptyState(
+                              context,
+                              textPrimary,
+                              textSecondary,
+                            )
+                          : TabBarView(
+                              children: [
+                                _buildExpenseList(
+                                  filteredExpenses,
+                                  financialManager,
+                                  context,
+                                ),
+                                _buildCategoriesView(
+                                  categoryExpenses,
+                                  total,
+                                  context,
+                                ),
+                                _buildRecentView(
+                                  filteredExpenses,
+                                  financialManager,
+                                  context,
+                                ),
+                              ],
+                            ),
+                    ),
+                  ]
+                  .animate(interval: 50.ms)
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.1, curve: Curves.easeOutQuad),
         ),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: AppTheme.primaryColor,
@@ -317,7 +354,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               context: context,
               builder: (context) => const AddExpenseDialog(),
             );
-            await StartIOAds.showInterstitial();
+            await StartIOAds.showInterstitial(context);
           },
           icon: const FaIcon(FontAwesomeIcons.plus),
           label: const Text('Add Expense'),
@@ -325,8 +362,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
     );
   }
-
-
 
   Widget _buildExpenseList(
     List<Expense> expenses,
@@ -346,7 +381,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         final expenseIndex = (expenses.length > 5 && index > 3)
             ? index - 1
             : index;
-        return _buildTransactionItem(context, expenses[expenseIndex], provider);
+        return _buildTransactionItem(context, expenses[expenseIndex], provider)
+            .animate(delay: (index * 50).ms)
+            .fadeIn(duration: 400.ms)
+            .slideX(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -487,7 +525,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       itemBuilder: (context, index) {
         final entry = sortedEntries[index];
         final percentage = total > 0 ? (entry.value / total) * 100 : 0.0;
-        return _buildCategoryCard(context, entry.key, entry.value, percentage);
+        return _buildCategoryCard(context, entry.key, entry.value, percentage)
+            .animate(delay: (index * 50).ms)
+            .fadeIn(duration: 400.ms)
+            .slideX(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -630,7 +671,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.keyboard_arrow_down, size: 16, color: textPrimary.withOpacity(0.5)),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: textPrimary.withOpacity(0.5),
+              ),
             ],
           ),
         ),
@@ -659,7 +704,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   color: isSelected ? AppTheme.primaryColor : null,
                 ),
               ),
-              trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+              trailing: isSelected
+                  ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                  : null,
               onTap: () {
                 setState(() => _selectedPeriod = p);
                 Navigator.pop(context);
@@ -713,7 +760,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             final isSelected = _selectedCategory == cat;
             return ListTile(
               leading: Icon(
-                cat == 'All' ? Icons.all_inclusive : AppTheme.getCategoryIcon(cat),
+                cat == 'All'
+                    ? Icons.all_inclusive
+                    : AppTheme.getCategoryIcon(cat),
                 color: isSelected ? AppTheme.primaryColor : null,
               ),
               title: Text(
@@ -723,7 +772,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   color: isSelected ? AppTheme.primaryColor : null,
                 ),
               ),
-              trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+              trailing: isSelected
+                  ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                  : null,
               onTap: () {
                 setState(() => _selectedCategory = cat);
                 Navigator.pop(context);
@@ -790,9 +841,96 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 ),
         ),
         actions: [
+          IconButton(
+            icon: const FaIcon(
+              FontAwesomeIcons.brain,
+              color: AppTheme.accentColor,
+              size: 18,
+            ),
+            onPressed: () => _getAIInsight(context, data, total),
+            tooltip: 'Get AI Insight',
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _getAIInsight(
+    BuildContext context,
+    Map<String, double> data,
+    double total,
+  ) async {
+    final gemini = Provider.of<GeminiService>(context, listen: false);
+    final isEnabled = await gemini.isAIEnabled();
+
+    if (!isEnabled) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('AI Features are disabled. Enable them in Settings.'),
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const FaIcon(
+              FontAwesomeIcons.brain,
+              color: AppTheme.accentColor,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'AI Insight',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: FutureBuilder<String>(
+          future: gemini.analyzeBudgetPerformance(
+            budgets: Provider.of<FinancialDataManager>(
+              context,
+              listen: false,
+            ).budgets,
+            totalIncome: Provider.of<FinancialDataManager>(
+              context,
+              listen: false,
+            ).getTotalIncome(),
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 100,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            }
+            return SingleChildScrollView(
+              child: Text(
+                snapshot.data ?? 'No insight available',
+                style: GoogleFonts.inter(fontSize: 14),
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
           ),
         ],
       ),
@@ -814,7 +952,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           children: [
             Text(
               'Export Expenses',
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 24),
             ListTile(
@@ -823,7 +964,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.table_view_outlined, color: Colors.green),
+              leading: const Icon(
+                Icons.table_view_outlined,
+                color: Colors.green,
+              ),
               title: const Text('Export as CSV'),
               onTap: () => Navigator.pop(context),
             ),

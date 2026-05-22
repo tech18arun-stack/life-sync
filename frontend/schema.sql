@@ -189,31 +189,6 @@ CREATE TABLE IF NOT EXISTS reminders (
         TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS health_records (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
-  member_name TEXT NOT NULL,
-  record_type TEXT NOT NULL,
-  date DATE NOT NULL,
-  description TEXT,
-  diagnosis TEXT,
-  treatment TEXT,
-  next_visit DATE,
-  doctor_name TEXT,
-  doctor_phone TEXT,
-  hospital_name TEXT,
-  medication TEXT,
-  dosage TEXT,
-  frequency TEXT,
-  notes TEXT,
-  -- Media attachments for health records (like WhatsApp images)
-  attachments TEXT[], -- Array of attachment URLs/filenames
-  image_urls TEXT[], -- Separate array for image URLs specifically
-  file_paths TEXT[], -- Array for file paths in storage
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 -- Enable Row Level Security (RLS)
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
@@ -230,8 +205,6 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE health_records ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
@@ -286,14 +259,6 @@ CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders (user_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_due_date ON reminders (due_date);
 
 CREATE INDEX IF NOT EXISTS idx_reminders_is_paid ON reminders (is_paid);
-
-CREATE INDEX IF NOT EXISTS idx_health_records_user_id ON health_records (user_id);
-
-CREATE INDEX IF NOT EXISTS idx_health_records_member_name ON health_records (member_name);
-
-CREATE INDEX IF NOT EXISTS idx_health_records_record_type ON health_records (record_type);
-
-CREATE INDEX IF NOT EXISTS idx_health_records_date ON health_records (date);
 
 -- RLS Policies
 -- Expenses
@@ -408,20 +373,6 @@ UPDATE USING (auth.uid () = user_id);
 
 CREATE POLICY "Users can delete their own reminders" ON reminders FOR DELETE USING (auth.uid () = user_id);
 
--- Health Records
-CREATE POLICY "Users can view their own health records" ON health_records FOR
-SELECT USING (auth.uid () = user_id);
-
-CREATE POLICY "Users can insert their own health records" ON health_records FOR
-INSERT
-WITH
-    CHECK (auth.uid () = user_id);
-
-CREATE POLICY "Users can update their own health records" ON health_records FOR
-UPDATE USING (auth.uid () = user_id);
-
-CREATE POLICY "Users can delete their own health records" ON health_records FOR DELETE USING (auth.uid () = user_id);
-
 -- User Profiles
 -- Users can view their own profile
 CREATE POLICY "Users can view their own profile" ON user_profiles FOR
@@ -457,43 +408,6 @@ UPDATE USING (auth.uid () = parent_user_id);
 -- Admins can delete their client profiles
 CREATE POLICY "Admins can delete their client profiles" ON user_profiles FOR DELETE USING (auth.uid () = parent_user_id);
 
--- Storage bucket for health record images
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'health-images') THEN
-        INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_limit, allowed_mime_types)
-        VALUES ('health-images', 'health-images', false, true, 5242880, '{image/png,image/jpeg,image/gif,image/webp,image/jpg}');
-    END IF;
-END $$;
-
--- RLS Policies for storage (only create if they don't exist)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow individual access') THEN
-        CREATE POLICY "Allow individual access" ON storage.objects
-        FOR SELECT TO authenticated
-        USING (bucket_id = 'health-images' AND (storage.foldername(name))[1] = auth.uid()::text);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow individual uploads') THEN
-        CREATE POLICY "Allow individual uploads" ON storage.objects
-        FOR INSERT TO authenticated
-        WITH CHECK (bucket_id = 'health-images' AND (storage.foldername(name))[1] = auth.uid()::text);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow individual updates') THEN
-        CREATE POLICY "Allow individual updates" ON storage.objects
-        FOR UPDATE TO authenticated
-        USING (bucket_id = 'health-images' AND (storage.foldername(name))[1] = auth.uid()::text);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow individual deletes') THEN
-        CREATE POLICY "Allow individual deletes" ON storage.objects
-        FOR DELETE TO authenticated
-        USING (bucket_id = 'health-images' AND (storage.foldername(name))[1] = auth.uid()::text);
-    END IF;
-END $$;
-
 -- Triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -525,9 +439,6 @@ CREATE TRIGGER update_savings_goals_updated_at BEFORE UPDATE ON savings_goals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_reminders_updated_at BEFORE UPDATE ON reminders
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_health_records_updated_at BEFORE UPDATE ON health_records
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles

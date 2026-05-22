@@ -3,6 +3,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../services/notification_service.dart';
 import '../services/gemini_service.dart';
@@ -12,8 +15,9 @@ import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
 import '../services/startio_ads.dart';
 import '../services/config_service.dart';
-import '../widgets/app_updater_dialog.dart';
-import 'ad_test_screen.dart';
+import '../services/razorpay_service.dart';
+import 'privacy_policy_screen.dart';
+import 'data_privacy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,7 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _budgetAlerts = true;
   bool _reminderAlerts = true;
   bool _savingsGoalAlerts = true;
-  String _currency = 'INR';
 
   // Security
   bool _appLockEnabled = false;
@@ -37,13 +40,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _aiEnabled = false;
   String _apiKey = '';
   bool _apiKeyValid = false;
-  bool _isValidating = false;
-  final _apiKeyController = TextEditingController();
+  String _currentVersion = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _initPackageInfo();
+  }
+
+  Future<void> _initPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      setState(() {
+        _currentVersion = info.version;
+      });
+    } catch (e) {
+      debugPrint('Error getting package info: $e');
+      setState(() {
+        _currentVersion = 'Unknown';
+      });
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -66,18 +83,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _budgetAlerts = prefs.getBool('budgetAlerts') ?? true;
       _reminderAlerts = prefs.getBool('reminderAlerts') ?? true;
       _savingsGoalAlerts = prefs.getBool('savingsGoalAlerts') ?? true;
-      _currency = prefs.getString('currency') ?? 'INR';
       _apiKey = apiKey ?? '';
       _aiEnabled = aiEnabled && (apiKey != null && apiKey.isNotEmpty);
       _apiKeyValid = apiKey != null && apiKey.isNotEmpty;
 
       _appLockEnabled = SecurityService().isAppLockEnabled;
-      _biometricEnabled = SecurityService().isBiometricEnabled;
     });
-
-    if (_apiKey.isNotEmpty) {
-      _apiKeyController.text = _maskApiKey(_apiKey);
-    }
   }
 
   Future<void> _saveSetting(String key, dynamic value) async {
@@ -93,6 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final configService = ConfigService();
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
@@ -113,6 +125,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         children: [
+          // Premium Section
+          _buildSectionHeader(context, 'Premium'),
+          _buildSettingContainer(
+            context,
+            children: [
+              if (!(authProvider.currentUser?.isPremiumActive ?? false))
+                _buildSettingTile(
+                  context,
+                  title: 'Upgrade to Premium',
+                  subtitle:
+                      'Unlock all features for just ₹${configService.premiumMonthlyCost.toStringAsFixed(0)} / Month',
+                  icon: FontAwesomeIcons.crown,
+                  onTap: () {
+                    final user = authProvider.currentUser;
+                    if (user != null) {
+                      final razorpay = RazorpayService();
+                      razorpay.initialize();
+                      razorpay.openPaymentSheet(
+                        amount: configService.premiumMonthlyCost,
+                        name: 'LifeSync Premium',
+                        description: 'Monthly Premium Subscription',
+                        email: user.email,
+                        contact: user.phone ?? '',
+                        onSuccess: () async {
+                          await authProvider
+                              .refreshUser(); // Refresh premium status from DB
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  '🎉 Congratulations! You are now a Premium user.',
+                                ),
+                                backgroundColor: AppTheme.successColor,
+                              ),
+                            );
+                          }
+                        },
+                        onError: (msg) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('❌ Payment Failed: $msg'),
+                                backgroundColor: AppTheme.errorColor,
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    }
+                  },
+                )
+              else
+                _buildSettingTile(
+                  context,
+                  title: 'Premium Member',
+                  subtitle: authProvider.currentUser?.premiumExpiryDate != null
+                      ? 'Expires: ${DateFormat('dd MMM yyyy').format(authProvider.currentUser!.premiumExpiryDate!)}'
+                      : 'Lifetime Access',
+                  icon: FontAwesomeIcons.crown,
+                  trailing: const Icon(
+                    Icons.check_circle,
+                    color: AppTheme.successColor,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
           // Appearance Section
           _buildSectionHeader(context, 'Appearance'),
           _buildSettingContainer(
@@ -134,14 +214,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppTheme.primaryColor,
                 ),
-              ),
-              _buildDivider(context),
-              _buildSettingTile(
-                context,
-                title: 'Currency',
-                subtitle: _getCurrencySymbol(_currency),
-                icon: FontAwesomeIcons.indianRupeeSign,
-                onTap: () => _showCurrencyDialog(context),
               ),
             ],
           ),
@@ -279,17 +351,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingTile(
                 context,
                 title: 'Data Privacy',
-                subtitle: 'All data stored locally on your device',
+                subtitle: 'Learn how your data is protected',
                 icon: FontAwesomeIcons.shieldHalved,
                 onTap: () {
-                  _showSimpleDialog(
+                  Navigator.push(
                     context,
-                    'Data Privacy',
-                    '✓ All your data is stored locally on your device\n'
-                        '✓ No data is sent to external servers\n'
-                        '✓ You have full control over your information\n'
-                        '✓ Backups are saved to locations of your choice\n'
-                        '✓ We do not collect any personal information',
+                    MaterialPageRoute(
+                      builder: (_) => const DataPrivacyScreen(),
+                    ),
                   );
                 },
               ),
@@ -306,37 +375,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingTile(
                 context,
                 title: 'Version',
-                subtitle: '1.0.0 (Latest)',
+                subtitle: _currentVersion,
                 icon: FontAwesomeIcons.codeBranch,
-                onTap: () {
-                  _showUpdateDialog(context);
-                },
               ),
               _buildDivider(context),
-              // Ad Testing (Debug Only)
-              _buildSettingTile(
-                context,
-                title: '📢 Test Ads (Debug)',
-                subtitle: 'Test Start.io ad integration',
-                icon: FontAwesomeIcons.flask,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AdTestScreen()),
-                  );
-                },
-              ),
-              _buildDivider(context),
+
               _buildSettingTile(
                 context,
                 title: 'Privacy Policy',
-                subtitle: 'Read our privacy policy',
+                subtitle: 'Read our full privacy policy',
                 icon: FontAwesomeIcons.fileContract,
-                onTap: () => _showSimpleDialog(
-                  context,
-                  'Privacy Policy',
-                  'LifeSync Privacy Policy\n\nYour privacy is important to us. We store all data locally...',
-                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
+                  );
+                },
               ),
               _buildDivider(context),
               _buildSettingTile(
@@ -370,15 +426,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ElevatedButton(
                 onPressed: () => _showLogoutDialog(context, authProvider),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.errorColor.withValues(alpha: 0.1),
+                  backgroundColor: AppTheme.errorColor.withOpacity(0.1),
                   foregroundColor: AppTheme.errorColor,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  side: BorderSide(
-                    color: AppTheme.errorColor.withValues(alpha: 0.3),
-                  ),
+                  side: BorderSide(color: AppTheme.errorColor.withOpacity(0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -418,14 +472,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Plan • Track • Achieve',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: AppTheme.textTertiary.withValues(alpha: 0.7),
+                    color: AppTheme.textTertiary.withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: 24),
               ],
             ),
           ),
-        ],
+        ].animate(interval: 50.ms).fadeIn(duration: 400.ms).slideX(begin: 0.1, curve: Curves.easeOutQuad),
       ),
     );
   }
@@ -456,7 +510,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -521,7 +575,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               else if (onTap != null)
                 Icon(
                   Icons.chevron_right,
-                  color: AppTheme.textTertiary.withValues(alpha: 0.5),
+                  color: AppTheme.textTertiary.withOpacity(0.5),
                 ),
             ],
           ),
@@ -535,7 +589,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Divider(
       height: 1,
       thickness: 1,
-      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[200],
+      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200],
       indent: 64,
     );
   }
@@ -559,7 +613,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
@@ -572,7 +626,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Cancel',
               style: GoogleFonts.inter(color: AppTheme.textSecondary),
@@ -580,7 +634,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext); // Close dialog
               await authProvider.logout();
               if (context.mounted) {
                 Navigator.pushNamedAndRemoveUntil(
@@ -607,82 +661,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  void _showCurrencyDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Select Currency',
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildCurrencyOption('INR', '₹ Indian Rupee'),
-            _buildCurrencyOption('USD', '\$ US Dollar'),
-            _buildCurrencyOption('EUR', '€ Euro'),
-            _buildCurrencyOption('GBP', '£ British Pound'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCurrencyOption(String code, String name) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        name,
-        style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w500),
-      ),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: _currency == code
-              ? AppTheme.primaryColor.withValues(alpha: 0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.check,
-          color: _currency == code ? AppTheme.primaryColor : Colors.transparent,
-          size: 20,
-        ),
-      ),
-      onTap: () {
-        setState(() => _currency = code);
-        _saveSetting('currency', code);
-        Navigator.pop(context);
-      },
-    );
-  }
-
-  String _getCurrencySymbol(String code) {
-    switch (code) {
-      case 'INR':
-        return '₹ Indian Rupee';
-      case 'USD':
-        return '\$ US Dollar';
-      case 'EUR':
-        return '€ Euro';
-      case 'GBP':
-        return '£ British Pound';
-      default:
-        return '₹ Indian Rupee';
-    }
   }
 
   Widget _buildAIFeaturesSection(BuildContext context, bool isDark) {
@@ -722,23 +700,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: FontAwesomeIcons.key,
           onTap: () => _showApiKeyDialog(),
         ),
-        if (_apiKey.isNotEmpty) ...[
-          _buildDivider(context),
-          _buildSettingTile(
-            context,
-            title: 'Test AI Connection',
-            subtitle: 'Verify your API key is working',
-            icon: FontAwesomeIcons.flask,
-            onTap: _isValidating ? null : _validateApiKey,
-            trailing: _isValidating
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : null,
-          ),
-        ],
       ],
     );
   }
@@ -856,78 +817,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _validateApiKey() async {
-    setState(() => _isValidating = true);
-    try {
-      final geminiService = Provider.of<GeminiService>(context, listen: false);
-      final isValid = await geminiService.validateApiKey();
-      setState(() {
-        _apiKeyValid = isValid;
-        _isValidating = false;
-      });
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isValid ? 'Valid API Key!' : 'Invalid API Key',
-              style: GoogleFonts.inter(),
-            ),
-            backgroundColor: isValid
-                ? AppTheme.successColor
-                : AppTheme.errorColor,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isValidating = false);
-    }
-  }
-
   String _maskApiKey(String key) {
     if (key.length <= 8) return key;
     return '${key.substring(0, 4)}...${key.substring(key.length - 4)}';
   }
 
-  void _showSimpleDialog(BuildContext context, String title, String content) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          title,
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Text(content, style: GoogleFonts.inter(height: 1.5)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: GoogleFonts.inter()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showUpdateDialog(BuildContext context) {
-    final config = ConfigService();
-
-    showDialog(
-      context: context,
-      builder: (context) => AppUpdaterDialog(
-        downloadUrl: config.downloadUrl,
-        latestVersion: config.latestVersion,
-        releaseNotes: config.updateMessage,
-        forceUpdate: false,
-      ),
-    );
-  }
-
   @override
   void dispose() {
-    _apiKeyController.dispose();
     super.dispose();
   }
 }

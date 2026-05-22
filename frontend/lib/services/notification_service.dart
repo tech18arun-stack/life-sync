@@ -8,7 +8,7 @@ import '../models/reminder.dart';
 import '../models/task.dart';
 import '../models/savings_goal.dart';
 import '../models/family_event.dart';
-import '../models/health_record.dart';
+
 import '../models/expense.dart';
 import '../models/notification_item.dart';
 
@@ -30,9 +30,10 @@ class NotificationService {
   static const String _channelIdBudget = 'lifesync_budget';
   static const String _channelIdSavings = 'lifesync_savings';
   static const String _channelIdEvents = 'lifesync_events';
-  static const String _channelIdHealth = 'lifesync_health';
+
   static const String _channelIdFamily = 'lifesync_family';
   static const String _channelIdDaily = 'lifesync_daily';
+  static const String _channelIdPremium = 'lifesync_premium';
 
   /// Initialize notification service with all channels
   Future<void> initialize() async {
@@ -580,28 +581,64 @@ class NotificationService {
     await _notifications.cancel(notificationId + 1);
   }
 
-  // ========== HEALTH NOTIFICATIONS ==========
+  // ========== PREMIUM NOTIFICATIONS ==========
 
-  Future<void> scheduleHealthVisitNotifications(HealthRecord record) async {
-    if (record.nextVisit == null) return;
+  Future<void> showPremiumPaidNotification(String planType) async {
+    final title = '🎊 Welcome to ${planType.toUpperCase()}!';
+    const body =
+        'Your premium subscription is now active. Enjoy all the exclusive features and an ad-free experience!';
 
-    final notificationId = record.id.hashCode;
-    final visitDate = record.nextVisit!;
+    await showNotification(
+      id: 'premium_paid'.hashCode,
+      title: title,
+      body: body,
+      channel: NotificationChannel.premium,
+      priority: NotificationPriority.high,
+    );
+  }
 
-    // Notify 1 day before
-    final oneDayBefore = visitDate.subtract(const Duration(days: 1));
-    if (oneDayBefore.isAfter(DateTime.now())) {
-      await scheduleNotification(
-        id: notificationId + 1,
-        title: '🏥 Health Visit Tomorrow',
-        body:
-            record.description ??
-            'You have a health visit scheduled for tomorrow',
-        scheduledDate: oneDayBefore,
-        payload: 'health:${record.id}',
-        channel: NotificationChannel.health,
-        priority: NotificationPriority.high,
-      );
+  Future<void> schedulePremiumExpiryNotifications(DateTime expiryDate) async {
+    final now = DateTime.now();
+
+    // Only schedule if expiry is in the future
+    if (expiryDate.isBefore(now)) return;
+
+    // Gaps between hours: 9 AM, 11 AM, 1 PM, 3 PM, 5 PM, 7 PM (6 times a day)
+    final hours = [9, 11, 13, 15, 17, 19];
+
+    // Schedule for the last 4 days (Day -4, Day -3, Day -2, Day -1) plus the day it expires (Day 0)
+    for (int daysBefore = 4; daysBefore >= 0; daysBefore--) {
+      final targetDay = expiryDate.subtract(Duration(days: daysBefore));
+
+      // Don't schedule for past days
+      if (targetDay.isBefore(DateTime(now.year, now.month, now.day))) continue;
+
+      for (int i = 0; i < hours.length; i++) {
+        final scheduledTime = DateTime(
+          targetDay.year,
+          targetDay.month,
+          targetDay.day,
+          hours[i],
+        );
+
+        // Don't schedule for past times today
+        if (scheduledTime.isBefore(now)) continue;
+
+        String dayText = daysBefore == 0 ? 'today' : 'in $daysBefore days';
+
+        await scheduleNotification(
+          // Unique ID for each notification based on day and hour index
+          id: 'premium_expiry_${daysBefore}_$i'.hashCode,
+          title: daysBefore == 0
+              ? '🚨 Premium Expired Today'
+              : '⚠️ Premium Expiring Soon',
+          body:
+              'Your premium subscription will expire $dayText. Renew now to keep your exclusive benefits!',
+          scheduledDate: scheduledTime,
+          channel: NotificationChannel.premium,
+          priority: NotificationPriority.high,
+        );
+      }
     }
   }
 
@@ -674,12 +711,13 @@ class NotificationService {
         return _channelIdSavings;
       case NotificationChannel.events:
         return _channelIdEvents;
-      case NotificationChannel.health:
-        return _channelIdHealth;
+
       case NotificationChannel.family:
         return _channelIdFamily;
       case NotificationChannel.daily:
         return _channelIdDaily;
+      case NotificationChannel.premium:
+        return _channelIdPremium;
     }
   }
 
@@ -697,12 +735,13 @@ class NotificationService {
         return 'Savings Goals';
       case NotificationChannel.events:
         return 'Family Events';
-      case NotificationChannel.health:
-        return 'Health Alerts';
+
       case NotificationChannel.family:
         return 'Family Updates';
       case NotificationChannel.daily:
         return 'Daily Summary';
+      case NotificationChannel.premium:
+        return 'Premium Updates';
     }
   }
 
@@ -720,12 +759,13 @@ class NotificationService {
         return 'Savings goal milestones and deadlines';
       case NotificationChannel.events:
         return 'Upcoming family events';
-      case NotificationChannel.health:
-        return 'Health checkup and medication reminders';
+
       case NotificationChannel.family:
         return 'Notifications about family members';
       case NotificationChannel.daily:
         return 'Daily morning summary';
+      case NotificationChannel.premium:
+        return 'Subscription and premium feature updates';
     }
   }
 
@@ -747,9 +787,10 @@ enum NotificationChannel {
   budget,
   savings,
   events,
-  health,
+
   family,
   daily,
+  premium,
 }
 
 enum NotificationPriority { normal, high }

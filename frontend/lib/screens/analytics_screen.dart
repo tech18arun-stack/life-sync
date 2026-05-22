@@ -10,9 +10,10 @@ import '../widgets/expense_prediction_card.dart';
 import '../services/gemini_service.dart';
 import '../providers/financial_data_manager.dart';
 import '../widgets/ai_tips_card.dart';
-import '../widgets/rewarded_ad_dialog.dart';
+import '../widgets/premium_gate.dart';
 import '../utils/app_theme.dart';
 import '../services/startio_ads.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -26,7 +27,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _aiEnabled = false;
   String? _aiAnalysis;
   bool _isLoadingAI = false;
-  bool _premiumUnlocked = false;
 
   @override
   void initState() {
@@ -102,49 +102,65 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   padding: const EdgeInsets.all(20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildFinancialSummaryCard(context),
+                      _buildFinancialSummaryCard(context)
+                          .animate()
+                          .fadeIn()
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                       const SizedBox(height: 24),
 
-                      // AI Analysis
-                      if (_aiEnabled &&
-                          (_aiAnalysis != null ||
-                              _isLoadingAI ||
-                              _premiumUnlocked))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          child: AITipsCard(
-                            tip: _premiumUnlocked
-                                ? _aiAnalysis
-                                : 'Watch ad to unlock premium insights',
-                            isLoading: _isLoadingAI,
-                            onRefresh: _loadAIAnalysis,
-                            title: '🤖 AI Trend Analysis',
-                          ),
-                        ),
+                      // Premium GAte for AI Insights & Predictions
+                      PremiumGate(
+                            featureName: 'AI Insights & Predictions',
+                            requiredAds: 3,
+                            isInline: true,
+                            icon: Icons.auto_awesome,
+                            child: Column(
+                              children: [
+                                // AI Analysis
+                                if (_aiAnalysis != null || _isLoadingAI)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 24),
+                                    child: AITipsCard(
+                                      tip: _aiAnalysis,
+                                      isLoading: _isLoadingAI,
+                                      onRefresh: _loadAIAnalysis,
+                                      title: '🤖 AI Trend Analysis',
+                                    ),
+                                  ),
 
-                      // Watch Ad for Premium Features
-                      if (_aiEnabled && !_premiumUnlocked)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          child: _buildPremiumUnlockCard(context),
-                        ),
+                                // Prediction Card
+                                ExpensePredictionCard(
+                                  predictionData: predictions,
+                                ),
+                                const SizedBox(height: 24),
+                              ],
+                            ),
+                          )
+                          .animate(delay: 100.ms)
+                          .fadeIn()
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
 
-                      // Prediction Card
-                      ExpensePredictionCard(predictionData: predictions),
-                      const SizedBox(height: 24),
-
-                      // Spending Trends
-                      SpendingTrendsChart(dailySpending: trends),
+                      // Spending Trends (Always visible)
+                      SpendingTrendsChart(dailySpending: trends)
+                          .animate(delay: 200.ms)
+                          .fadeIn()
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                       const SizedBox(height: 24),
 
                       // Monthly Comparison
-                      MonthlyComparisonWidget(comparisonData: comparison),
+                      MonthlyComparisonWidget(comparisonData: comparison)
+                          .animate(delay: 300.ms)
+                          .fadeIn()
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                       const SizedBox(height: 24),
                       const Center(child: StartioMrec()),
                       const SizedBox(height: 24),
 
                       // Category Breakdown
-                      CategoryBreakdownWidget(categoryTotals: categories),
+                      CategoryBreakdownWidget(categoryTotals: categories)
+                          .animate(delay: 400.ms)
+                          .fadeIn()
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                       const SizedBox(height: 80),
                     ]),
                   ),
@@ -214,7 +230,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppTheme.primaryColor.withValues(alpha: 0.05),
+                AppTheme.primaryColor.withOpacity(0.05),
                 Theme.of(context).scaffoldBackgroundColor,
               ],
             ),
@@ -243,7 +259,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                color: AppTheme.primaryColor.withOpacity(0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -257,7 +273,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -291,7 +307,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                   ),
                   Expanded(
                     child: Padding(
@@ -310,7 +326,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -397,112 +413,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPremiumUnlockCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF6C63FF), const Color(0xFF8B85FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.workspace_premium,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Unlock Premium Insights',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Watch a short video to unlock AI analysis',
-                      style: GoogleFonts.inter(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () async {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => RewardedAdDialog(
-                    featureName: 'AI Analytics',
-                    onRewardEarned: () {
-                      setState(() {
-                        _premiumUnlocked = true;
-                      });
-                      // Load AI analysis after unlocking
-                      _loadAIAnalysis();
-                    },
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF6C63FF),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.play_circle_filled, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Watch & Unlock',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

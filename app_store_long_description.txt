@@ -10,6 +10,8 @@ Transform the way you manage your personal and family life with LifeSync, the co
 • Create and track savings goals with milestone celebrations
 • Export financial data to CSV for tax filing and analysis
 • AI-powered budget insights and recommendations
+• Automated transaction detection from bank SMS (India)
+• Smart AI categorization of expenses
 
 **✅ POWERFUL TASK MANAGEMENT**
 • Create, organize, and prioritize tasks effortlessly
@@ -25,6 +27,11 @@ Transform the way you manage your personal and family life with LifeSync, the co
 • Set reminders for upcoming doctor appointments
 • Store vital health information in one secure place
 • Get notified before scheduled health visits
+
+**🧠 PERSONAL LIFE OS**
+• Dynamic habit tracking with automated streaks
+• Daily mood logging with emotional factor analysis
+• Visual mood trends and habit progress rings
 
 **👨‍👩‍👧‍👦 FAMILY MANAGEMENT**
 • Add and manage family member profiles

@@ -14,6 +14,7 @@ import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive.dart';
 import 'register_screen.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,36 +23,19 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-        );
-    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -70,68 +54,78 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
-      try {
-        await _initializeProviders();
-        if (mounted) {
-          final user = authProvider.currentUser;
-          if (user != null) {
-            final isAdmin = user.isAdmin;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(
-                      isAdmin ? Icons.admin_panel_settings : Icons.person,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Welcome back, ${user.name}!${isAdmin ? ' (Admin)' : ''}',
-                        style: GoogleFonts.inter(),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: AppTheme.successColor,
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
-          }
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      } catch (e) {
-        if (mounted) {
+      _navigateToHome();
+    } else if (mounted) {
+      _showError(authProvider.error ?? 'Login failed');
+    }
+  }
+
+  Future<void> _navigateToHome() async {
+    if (!mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      await _initializeProviders();
+      if (mounted) {
+        final user = authProvider.currentUser;
+        if (user != null) {
+          final isAdmin = user.isAdmin;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Failed to initialize app data: $e',
-                style: GoogleFonts.inter(),
+              content: Row(
+                children: [
+                  Icon(
+                    isAdmin ? Icons.admin_panel_settings : Icons.person,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Welcome back, ${user.name}!${isAdmin ? ' (Admin)' : ''}',
+                      style: GoogleFonts.inter(),
+                    ),
+                  ),
+                ],
               ),
-              backgroundColor: AppTheme.errorColor,
+              backgroundColor: AppTheme.successColor,
+              duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
+        Navigator.pushReplacementNamed(context, '/home');
       }
-    } else if (mounted) {
-      final errorMsg = authProvider.error ?? 'Login failed';
-      if (errorMsg.toLowerCase().contains('email') &&
-          errorMsg.toLowerCase().contains('confirm')) {
-        _showEmailNotVerifiedDialog();
-      } else {
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMsg, style: GoogleFonts.inter()),
+            content: Text(
+              'Failed to initialize app data: $e',
+              style: GoogleFonts.inter(),
+            ),
             backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    }
+  }
+
+  void _showError(String errorMsg) {
+    if (errorMsg.toLowerCase().contains('email') &&
+        errorMsg.toLowerCase().contains('confirm')) {
+      _showEmailNotVerifiedDialog();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg, style: GoogleFonts.inter()),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -364,35 +358,37 @@ class _LoginScreenState extends State<LoginScreen>
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 1024;
-              
+
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: Responsive.getHorizontalPadding(context),
                   vertical: Responsive.isDesktop(context) ? 40 : 24,
                 ),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _slideAnimation,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isDesktop ? 500 : double.infinity,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(height: isDesktop ? 60 : 32),
-                          _buildHeader(isDark, context),
-                          SizedBox(height: isDesktop ? 64 : 48),
-                          _buildLoginForm(authProvider, isDark, context),
-                          SizedBox(height: isDesktop ? 32 : 24),
-                          _buildLoginButton(authProvider, context),
-                          SizedBox(height: isDesktop ? 32 : 24),
-                          _buildRegisterLink(isDark, context),
-                          SizedBox(height: Responsive.getHorizontalPadding(context)),
-                        ],
-                      ),
-                    ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isDesktop ? 500 : double.infinity,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children:
+                        [
+                              SizedBox(height: isDesktop ? 60 : 32),
+                              _buildHeader(isDark, context),
+                              SizedBox(height: isDesktop ? 64 : 48),
+                              _buildLoginForm(authProvider, isDark, context),
+                              SizedBox(height: isDesktop ? 32 : 24),
+                              _buildLoginButton(authProvider, context),
+                              SizedBox(height: isDesktop ? 32 : 24),
+                              _buildRegisterLink(isDark, context),
+                              SizedBox(
+                                height: Responsive.getHorizontalPadding(
+                                  context,
+                                ),
+                              ),
+                            ]
+                            .animate(interval: 100.ms)
+                            .fade(duration: 600.ms)
+                            .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                   ),
                 ),
               );
@@ -433,17 +429,18 @@ class _LoginScreenState extends State<LoginScreen>
         SizedBox(height: isDesktop ? 40 : (isTablet ? 32 : 28)),
         Text(
           'LifeSync',
-          style: GoogleFonts.inter(
-            fontSize: isDesktop
-                ? Responsive.getFontSize(context, FontSizeType.largeDisplay)
-                : Responsive.getFontSize(context, FontSizeType.display),
-            fontWeight: FontWeight.bold,
-          ).copyWith(
-            foreground: Paint()
-              ..shader = AppTheme.primaryGradient.createShader(
-                const Rect.fromLTWH(0, 0, 200, 70),
+          style:
+              GoogleFonts.inter(
+                fontSize: isDesktop
+                    ? Responsive.getFontSize(context, FontSizeType.largeDisplay)
+                    : Responsive.getFontSize(context, FontSizeType.display),
+                fontWeight: FontWeight.bold,
+              ).copyWith(
+                foreground: Paint()
+                  ..shader = AppTheme.primaryGradient.createShader(
+                    const Rect.fromLTWH(0, 0, 200, 70),
+                  ),
               ),
-          ),
         ),
         SizedBox(height: isDesktop ? 16 : (isTablet ? 12 : 8)),
         Text(
@@ -471,7 +468,11 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginForm(AuthProvider authProvider, bool isDark, BuildContext context) {
+  Widget _buildLoginForm(
+    AuthProvider authProvider,
+    bool isDark,
+    BuildContext context,
+  ) {
     final isDesktop = Responsive.isDesktop(context);
     final isTablet = Responsive.isTablet(context);
     final cardRadius = isDesktop ? 32.0 : (isTablet ? 28.0 : 24.0);
@@ -512,14 +513,20 @@ class _LoginScreenState extends State<LoginScreen>
                   keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.inter(
                     color: isDark ? AppTheme.textPrimary : Colors.black,
-                    fontSize: Responsive.getFontSize(context, FontSizeType.body),
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Email',
                     hintText: 'Enter your email',
                     labelStyle: GoogleFonts.inter(
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: Responsive.getFontSize(context, FontSizeType.body),
+                      fontSize: Responsive.getFontSize(
+                        context,
+                        FontSizeType.body,
+                      ),
                     ),
                     hintStyle: GoogleFonts.inter(
                       color: isDark ? Colors.grey[500] : Colors.grey[400],
@@ -559,14 +566,20 @@ class _LoginScreenState extends State<LoginScreen>
                   obscureText: _obscurePassword,
                   style: GoogleFonts.inter(
                     color: isDark ? AppTheme.textPrimary : Colors.black,
-                    fontSize: Responsive.getFontSize(context, FontSizeType.body),
+                    fontSize: Responsive.getFontSize(
+                      context,
+                      FontSizeType.body,
+                    ),
                   ),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Enter your password',
                     labelStyle: GoogleFonts.inter(
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: Responsive.getFontSize(context, FontSizeType.body),
+                      fontSize: Responsive.getFontSize(
+                        context,
+                        FontSizeType.body,
+                      ),
                     ),
                     hintStyle: GoogleFonts.inter(
                       color: isDark ? Colors.grey[500] : Colors.grey[400],
@@ -617,7 +630,10 @@ class _LoginScreenState extends State<LoginScreen>
                       style: GoogleFonts.inter(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.w600,
-                        fontSize: Responsive.getFontSize(context, FontSizeType.body),
+                        fontSize: Responsive.getFontSize(
+                          context,
+                          FontSizeType.body,
+                        ),
                       ),
                     ),
                   ),
@@ -680,7 +696,10 @@ class _LoginScreenState extends State<LoginScreen>
                   Text(
                     'Login',
                     style: GoogleFonts.inter(
-                      fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
+                      fontSize: Responsive.getFontSize(
+                        context,
+                        FontSizeType.subtitle,
+                      ),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),

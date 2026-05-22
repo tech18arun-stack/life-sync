@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:provider/provider.dart';
 import '../services/startio_ads.dart';
+import '../providers/auth_provider.dart';
 
 /// Rewarded Ad Dialog for Premium Features
 ///
@@ -27,13 +28,26 @@ class _RewardedAdDialogState extends State<RewardedAdDialog> {
   bool _isLoading = false;
   bool _adWatched = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Auto-grant if already premium
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.currentUser?.isPremiumActive ?? false) {
+        widget.onRewardEarned();
+        Navigator.pop(context);
+      }
+    });
+  }
+
   Future<void> _watchAd() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Show rewarded video
-    final success = await StartIOAds.showRewarded();
+    // Show rewarded video (passes context for premium check)
+    final success = await StartIOAds.showRewarded(context);
 
     if (success && mounted) {
       setState(() {

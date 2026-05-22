@@ -9,6 +9,7 @@ import '../providers/reminder_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive.dart';
 import '../services/startio_ads.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -96,36 +97,41 @@ class _HistoryScreenState extends State<HistoryScreen>
                   final monthYear = groupedItems.keys.elementAt(index);
                   final monthItems = groupedItems[monthYear]!;
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 24 : 20,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          monthYear.toUpperCase(),
-                          style: GoogleFonts.inter(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                            fontSize: Responsive.getFontSize(
-                              context,
-                              FontSizeType.small,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isDesktop ? 24 : 20,
+                              vertical: 8,
                             ),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                            child: Text(
+                              monthYear.toUpperCase(),
+                              style: GoogleFonts.inter(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.color,
+                                fontSize: Responsive.getFontSize(
+                                  context,
+                                  FontSizeType.small,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      ...monthItems.map(
-                        (item) => _buildTransactionItem(item, context),
-                      ),
-                      if (index == 0 && monthItems.length > 3) ...[
-                        const SizedBox(height: 16),
-                        const Center(child: StartioMrec()),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-                  );
+                          ...monthItems.map(
+                            (item) => _buildTransactionItem(item, context),
+                          ),
+                          if (index == 0 && monthItems.length > 3) ...[
+                            const SizedBox(height: 16),
+                            const Center(child: StartioMrec()),
+                          ],
+                          const SizedBox(height: 16),
+                        ],
+                      )
+                      .animate(delay: (index * 50).ms)
+                      .fadeIn(duration: 400.ms)
+                      .slideY(begin: 0.1, curve: Curves.easeOutQuad);
                 }, childCount: groupedItems.keys.length),
               ),
             ),

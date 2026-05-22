@@ -1531,7 +1531,7 @@ class _FinancialCalendarScreenState extends State<FinancialCalendarScreen>
                       showDialog(
                         context: context,
                         builder: (context) => const AddExpenseDialog(),
-                      ).then((_) => StartIOAds.showInterstitial());
+                      ).then((_) => StartIOAds.showInterstitial(context));
                     },
                   ),
                 ),
@@ -1547,7 +1547,7 @@ class _FinancialCalendarScreenState extends State<FinancialCalendarScreen>
                       showDialog(
                         context: context,
                         builder: (context) => const AddIncomeDialog(),
-                      ).then((_) => StartIOAds.showInterstitial());
+                      ).then((_) => StartIOAds.showInterstitial(context));
                     },
                   ),
                 ),

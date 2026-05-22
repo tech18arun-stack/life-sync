@@ -27,19 +27,15 @@ class AppwriteService {
   // Configuration from --dart-define
   static const String endpoint = String.fromEnvironment(
     'APPWRITE_ENDPOINT',
-    defaultValue: 'https://api.edizo.in/v1',
+    defaultValue: 'https://api.websitescorp.com/v1',
   );
   static const String projectId = String.fromEnvironment(
     'APPWRITE_PROJECT_ID',
-    defaultValue: '69aa6e89000b08e67a76',
+    defaultValue: '69e45bf20039aebb88ac',
   );
   static const String databaseId = String.fromEnvironment(
     'APPWRITE_DATABASE_ID',
-    defaultValue: 'Life_db',
-  );
-  static const String healthImagesBucket = String.fromEnvironment(
-    'APPWRITE_HEALTH_IMAGES_BUCKET',
-    defaultValue: 'health-images',
+    defaultValue: '69e45c7d001156126993',
   );
 
   // Collection IDs
@@ -52,17 +48,18 @@ class AppwriteService {
   static const String tasksCollection = 'tasks';
   static const String savingsGoalsCollection = 'savings_goals';
   static const String remindersCollection = 'reminders';
-  static const String healthRecordsCollection = 'health_records';
+
   static const String subscriptionsCollection = 'subscriptions';
 
   /// Initialize Appwrite client
   Future<void> initialize() async {
     try {
       final dynamicEndpoint = ConfigService().apiBaseUrl;
+
       _client = Client()
           .setEndpoint(dynamicEndpoint)
           .setProject(projectId)
-          .setSelfSigned(status: true); // Enable self-signed certificates
+          .setSelfSigned(status: false); // ✅ Production SSL (Certbot installed)
 
       _account = Account(_client);
       _databases = Databases(_client);
@@ -73,7 +70,7 @@ class AppwriteService {
       debugPrint('Project ID: $projectId');
       debugPrint('Database: $databaseId');
     } catch (e) {
-      debugPrint('❌ Error initializing Appwrite: $e');
+      debugPrint('❌ Appwrite initialization error: $e');
       rethrow;
     }
   }
@@ -84,21 +81,54 @@ class AppwriteService {
   Databases get databases => _databases;
   Storage get storage => _storage;
 
-  /// Get current user ID
+  /// Get current user ID (async - fetches from Appwrite)
+  /// This ensures we always have the latest ID after OAuth login
+  Future<String?> getCurrentUserId() async {
+    try {
+      // Try cached user first
+      if (_cachedUser != null) {
+        return _cachedUser!.$id;
+      }
+
+      // Fetch from Appwrite if cache is empty
+      final user = await _account.get();
+      _cachedUser = user;
+      return user.$id;
+    } catch (e) {
+      debugPrint('⚠️ Failed to get current user ID: $e');
+      return null;
+    }
+  }
+
+  /// Get cached user ID (sync, may be null after OAuth)
+  /// Prefer getCurrentUserId() for reliable results
   String? get currentUserId {
     return _cachedUser?.$id;
   }
 
-  /// Refresh cached user data
+  /// Refresh cached user data from Appwrite
   Future<void> _refreshUser() async {
     try {
       _cachedUser = await _account.get();
+      debugPrint('✅ User cache refreshed: ${_cachedUser?.email}');
     } catch (e) {
+      debugPrint('⚠️ Failed to refresh user cache: $e');
       _cachedUser = null;
     }
   }
 
-  /// Check if user is logged in
+  /// Check if user is logged in (async - verifies with Appwrite)
+  Future<bool> checkIsLoggedIn() async {
+    try {
+      await _account.get();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if user is logged in (sync - uses cache, may be stale after OAuth)
+  /// Prefer checkIsLoggedIn() for reliable results
   bool get isLoggedIn => currentUserId != null;
 
   // ============================================================================
@@ -120,8 +150,8 @@ class AppwriteService {
         data.remove('id');
       }
 
-      // Add user_id if not present
-      final userId = currentUserId;
+      // Add user_id if not present (use async method for reliability)
+      final userId = currentUserId ?? await getCurrentUserId();
       if (userId != null && !data.containsKey('user_id')) {
         data['user_id'] = userId;
       }
@@ -169,8 +199,8 @@ class AppwriteService {
     try {
       await _refreshUser();
 
-      // Add user_id filter by default
-      final userId = currentUserId;
+      // Add user_id filter by default (use async method for reliability after OAuth)
+      final userId = currentUserId ?? await getCurrentUserId();
       if (userId != null) {
         final userQuery = Query.equal('user_id', userId);
         queries = queries != null ? [...queries, userQuery] : [userQuery];
@@ -582,51 +612,14 @@ class AppwriteService {
     await deleteDocument(collectionId: remindersCollection, documentId: id);
   }
 
-  // ---------- Health Records ----------
-  Future<List<Map<String, dynamic>>> getHealthRecords({
-    String? memberName,
-    String? recordType,
-  }) async {
-    List<String> queries = [];
-    if (memberName != null) {
-      queries.add(Query.equal('member_name', memberName));
-    }
-    if (recordType != null) {
-      queries.add(Query.equal('record_type', recordType));
-    }
-    return getDocuments(
-      collectionId: healthRecordsCollection,
-      queries: queries,
-    );
-  }
-
-  Future<Map<String, dynamic>> createHealthRecord(
-    Map<String, dynamic> data,
-  ) async {
-    return createDocument(collectionId: healthRecordsCollection, data: data);
-  }
-
-  Future<Map<String, dynamic>> updateHealthRecord(
-    String id,
-    Map<String, dynamic> data,
-  ) async {
-    return updateDocument(
-      collectionId: healthRecordsCollection,
-      documentId: id,
-      data: data,
-    );
-  }
-
-  Future<void> deleteHealthRecord(String id) async {
-    await deleteDocument(collectionId: healthRecordsCollection, documentId: id);
-  }
-
   // ---------- Subscriptions ----------
   Future<List<Map<String, dynamic>>> getSubscriptions() async {
     return getDocuments(collectionId: subscriptionsCollection);
   }
 
-  Future<Map<String, dynamic>> createSubscription(Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> createSubscription(
+    Map<String, dynamic> data,
+  ) async {
     return createDocument(collectionId: subscriptionsCollection, data: data);
   }
 

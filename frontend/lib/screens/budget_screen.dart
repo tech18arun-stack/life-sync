@@ -14,6 +14,7 @@ import '../widgets/smart_budget_dialog.dart';
 import '../services/gemini_service.dart';
 import '../services/startio_ads.dart';
 import '../widgets/ai_tips_card.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -77,8 +78,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -130,7 +133,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             context: context,
             builder: (context) => const AddBudgetDialog(),
           );
-          await StartIOAds.showInterstitial();
+          await StartIOAds.showInterstitial(context);
         },
       ),
       body: Consumer<FinancialDataManager>(
@@ -143,13 +146,26 @@ class _BudgetScreenState extends State<BudgetScreen> {
             return _buildEmptyState(context, textPrimary, textSecondary);
           }
 
-          return _buildBudgetList(context, financialManager, budgets, totalBudget, totalSpent, textPrimary, textSecondary, isDesktop);
+          return _buildBudgetList(
+            context,
+            financialManager,
+            budgets,
+            totalBudget,
+            totalSpent,
+            textPrimary,
+            textSecondary,
+            isDesktop,
+          );
         },
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, Color textPrimary, Color textSecondary) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     final isDesktop = Responsive.isDesktop(context);
     return Center(
       child: Column(
@@ -184,7 +200,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 context: context,
                 builder: (context) => const AddBudgetDialog(),
               );
-              await StartIOAds.showInterstitial();
+              if (mounted) await StartIOAds.showInterstitial(context);
             },
             child: Text(
               'Create your first budget',
@@ -229,13 +245,22 @@ class _BudgetScreenState extends State<BudgetScreen> {
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.all(isDesktop ? 24 : 20),
-            child: _buildTotalBudgetCard(context, financialManager, totalBudget, totalSpent),
+            child: _buildTotalBudgetCard(
+              context,
+              financialManager,
+              totalBudget,
+              totalSpent,
+            ),
           ),
         ),
 
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) => _buildBudgetCard(context, budgets[index], financialManager),
+            (context, index) =>
+                _buildBudgetCard(context, budgets[index], financialManager)
+                    .animate(delay: (index * 50).ms)
+                    .fadeIn(duration: 400.ms)
+                    .slideX(begin: 0.1, curve: Curves.easeOutQuad),
             childCount: budgets.length,
           ),
         ),
@@ -253,7 +278,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final isDesktop = Responsive.isDesktop(context);
     final isTablet = Responsive.isTablet(context);
     final cardRadius = Responsive.getCardRadius(context);
-    final progress = totalBudget > 0 ? (totalSpent / totalBudget).toDouble() : 0.0;
+    final progress = totalBudget > 0
+        ? (totalSpent / totalBudget).toDouble()
+        : 0.0;
 
     return Container(
       padding: EdgeInsets.all(isDesktop ? 32 : (isTablet ? 28 : 24)),
@@ -426,8 +453,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final isOverBudget = budget.isOverBudget;
     final color = AppTheme.getCategoryColor(budget.category);
     final cardColor = Theme.of(context).cardColor;
-    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    final textPrimary =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textSecondary =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
     final cardRadius = Responsive.getCardRadius(context);
 
     return Dismissible(
@@ -450,7 +479,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: Row(
             children: [
               Icon(Icons.delete_outline, color: AppTheme.errorColor),
@@ -480,7 +511,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ],
         ),
       ),
-      onDismissed: (direction) => financialManager.deleteBudget(budget.id ?? ''),
+      onDismissed: (direction) =>
+          financialManager.deleteBudget(budget.id ?? ''),
       child: Container(
         margin: EdgeInsets.symmetric(
           horizontal: isDesktop ? 24 : 20,
@@ -497,7 +529,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ],
           border: Border.all(
-            color: (isOverBudget ? AppTheme.errorColor : color).withOpacity(0.1),
+            color: (isOverBudget ? AppTheme.errorColor : color).withOpacity(
+              0.1,
+            ),
             width: 1,
           ),
         ),
@@ -599,8 +633,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           borderRadius: BorderRadius.circular(4),
                           boxShadow: [
                             BoxShadow(
-                              color: (isOverBudget ? AppTheme.errorColor : color)
-                                  .withOpacity(0.3),
+                              color:
+                                  (isOverBudget ? AppTheme.errorColor : color)
+                                      .withOpacity(0.3),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -620,14 +655,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: (isOverBudget ? AppTheme.errorColor : AppTheme.successColor)
-                            .withOpacity(0.1),
+                        color:
+                            (isOverBudget
+                                    ? AppTheme.errorColor
+                                    : AppTheme.successColor)
+                                .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${(progress * 100).toStringAsFixed(1)}% Used',
                         style: GoogleFonts.inter(
-                          color: isOverBudget ? AppTheme.errorColor : AppTheme.successColor,
+                          color: isOverBudget
+                              ? AppTheme.errorColor
+                              : AppTheme.successColor,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -638,7 +678,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           ? 'Over by ₹${NumberFormat('#,##,###', 'en_IN').format(budget.spentAmount - budget.allocatedAmount)}'
                           : '₹${NumberFormat('#,##,###', 'en_IN').format(budget.remainingAmount)} left',
                       style: GoogleFonts.inter(
-                        color: isOverBudget ? AppTheme.errorColor : AppTheme.successColor,
+                        color: isOverBudget
+                            ? AppTheme.errorColor
+                            : AppTheme.successColor,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),

@@ -13,6 +13,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../services/startio_ads.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/premium_gate.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 enum TimePeriod { week, month, threeMonths, sixMonths, year, all }
 
@@ -642,12 +645,50 @@ class _ReportsScreenState extends State<ReportsScreen>
             size: 20,
           ),
           tooltip: 'AI Analysis',
-          onPressed: () => _showAIReport(context),
+          onPressed: () {
+            // Check Premium or Gate
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            if (auth.currentUser?.isPremiumActive == true) {
+              _showAIReport(context);
+            } else {
+              // Push Premium Gate Screen
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PremiumGate(
+                    featureName: 'AI Detailed Reports',
+                    icon: FontAwesomeIcons.wandMagicSparkles,
+                    requiredAds: 3,
+                    child: _ReportsAIPassthrough(
+                      onReady: () => _showAIReport(context),
+                    ),
+                  ),
+                ),
+              );
+            }
+          },
         ),
         IconButton(
           icon: const Icon(Icons.download_rounded, color: Colors.white),
           tooltip: 'Export Report',
-          onPressed: () => _exportReport(context),
+          onPressed: () {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            if (auth.currentUser?.isPremiumActive == true) {
+              _exportReport(context);
+            } else {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => PremiumGate(
+                    featureName: 'Export PDF Reports',
+                    icon: Icons.download_rounded,
+                    requiredAds: 3,
+                    child: _ReportsExportPassthrough(
+                      onExport: () => _exportReport(context),
+                    ),
+                  ),
+                ),
+              );
+            }
+          },
         ),
       ],
     );
@@ -1029,98 +1070,102 @@ class _ReportsScreenState extends State<ReportsScreen>
     double totalExpenses,
   ) {
     return Container(
-      height: Responsive.isDesktop(context) ? 260 : 220,
-      padding: EdgeInsets.all(Responsive.isDesktop(context) ? 20 : 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [AppTheme.cardShadow],
-      ),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY:
-              (totalIncome > totalExpenses ? totalIncome : totalExpenses) * 1.1,
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              tooltipBgColor: Theme.of(context).cardColor,
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                return BarTooltipItem(
-                  '${rod.toY.toInt()}',
-                  GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    color: rod.color,
-                    fontSize: Responsive.getFontSize(
-                      context,
-                      FontSizeType.body,
-                    ),
-                  ),
-                );
-              },
-            ),
+          height: Responsive.isDesktop(context) ? 260 : 220,
+          padding: EdgeInsets.all(Responsive.isDesktop(context) ? 20 : 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [AppTheme.cardShadow],
           ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      value == 0 ? 'Income' : 'Expenses',
-                      style: GoogleFonts.inter(
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY:
+                  (totalIncome > totalExpenses ? totalIncome : totalExpenses) *
+                  1.1,
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  tooltipBgColor: Theme.of(context).cardColor,
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    return BarTooltipItem(
+                      '${rod.toY.toInt()}',
+                      GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: rod.color,
                         fontSize: Responsive.getFontSize(
                           context,
                           FontSizeType.body,
                         ),
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textSecondary,
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          value == 0 ? 'Income' : 'Expenses',
+                          style: GoogleFonts.inter(
+                            fontSize: Responsive.getFontSize(
+                              context,
+                              FontSizeType.body,
+                            ),
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                leftTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+              ),
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              barGroups: [
+                BarChartGroupData(
+                  x: 0,
+                  barRods: [
+                    BarChartRodData(
+                      toY: totalIncome,
+                      color: AppTheme.successColor,
+                      width: 32,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ],
+                ),
+                BarChartGroupData(
+                  x: 1,
+                  barRods: [
+                    BarChartRodData(
+                      toY: totalExpenses,
+                      color: AppTheme.errorColor,
+                      width: 32,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barGroups: [
-            BarChartGroupData(
-              x: 0,
-              barRods: [
-                BarChartRodData(
-                  toY: totalIncome,
-                  color: AppTheme.successColor,
-                  width: 32,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ],
-            ),
-            BarChartGroupData(
-              x: 1,
-              barRods: [
-                BarChartRodData(
-                  toY: totalExpenses,
-                  color: AppTheme.errorColor,
-                  width: 32,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+        )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
   }
 
   Widget _buildCategoryPieChart(
@@ -1128,30 +1173,33 @@ class _ReportsScreenState extends State<ReportsScreen>
     double totalExpenses,
   ) {
     return SizedBox(
-      height: 220,
-      child: PieChart(
-        PieChartData(
-          pieTouchData: PieTouchData(
-            touchCallback: (FlTouchEvent event, pieTouchResponse) {
-              setState(() {
-                if (!event.isInterestedForInteractions ||
-                    pieTouchResponse == null ||
-                    pieTouchResponse.touchedSection == null) {
-                  _touchedIndex = -1;
-                  return;
-                }
-                _touchedIndex =
-                    pieTouchResponse.touchedSection!.touchedSectionIndex;
-              });
-            },
+          height: 220,
+          child: PieChart(
+            PieChartData(
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  setState(() {
+                    if (!event.isInterestedForInteractions ||
+                        pieTouchResponse == null ||
+                        pieTouchResponse.touchedSection == null) {
+                      _touchedIndex = -1;
+                      return;
+                    }
+                    _touchedIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  });
+                },
+              ),
+              borderData: FlBorderData(show: false),
+              sectionsSpace: 4,
+              centerSpaceRadius: 40,
+              sections: _showingSections(categoryExpenses, totalExpenses),
+            ),
           ),
-          borderData: FlBorderData(show: false),
-          sectionsSpace: 4,
-          centerSpaceRadius: 40,
-          sections: _showingSections(categoryExpenses, totalExpenses),
-        ),
-      ),
-    );
+        )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
   }
 
   List<PieChartSectionData> _showingSections(
@@ -1336,53 +1384,108 @@ class _ReportsScreenState extends State<ReportsScreen>
   ) {
     final dailyData = manager.getDailySpending(days: 30);
     return Container(
-      height: Responsive.isDesktop(context) ? 260 : 220,
-      padding: EdgeInsets.all(Responsive.isDesktop(context) ? 24 : 20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [AppTheme.cardShadow],
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ), // Cleaner look without dates for sparkline effect
+          height: Responsive.isDesktop(context) ? 260 : 220,
+          padding: EdgeInsets.all(Responsive.isDesktop(context) ? 24 : 20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [AppTheme.cardShadow],
           ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: List.generate(dailyData.length, (index) {
-                return FlSpot(
-                  index.toDouble(),
-                  (dailyData[index]['amount'] as double),
-                );
-              }),
-              isCurved: true,
-              color: AppTheme.primaryColor,
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.2),
-                    AppTheme.primaryColor.withValues(alpha: 0.0),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+          child: LineChart(
+            LineChartData(
+              gridData: const FlGridData(show: false),
+              titlesData: const FlTitlesData(
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
                 ),
+                rightTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ), // Cleaner look without dates for sparkline effect
               ),
+              borderData: FlBorderData(show: false),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: List.generate(dailyData.length, (index) {
+                    return FlSpot(
+                      index.toDouble(),
+                      (dailyData[index]['amount'] as double),
+                    );
+                  }),
+                  isCurved: true,
+                  color: AppTheme.primaryColor,
+                  barWidth: 3,
+                  isStrokeCapRound: true,
+                  dotData: const FlDotData(show: false),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryColor.withValues(alpha: 0.2),
+                        AppTheme.primaryColor.withValues(alpha: 0.0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
   }
+}
+
+/// Helper to trigger report action immediately after unlock
+class _ReportsAIPassthrough extends StatefulWidget {
+  final VoidCallback onReady;
+  const _ReportsAIPassthrough({required this.onReady});
+  @override
+  State<_ReportsAIPassthrough> createState() => _ReportsAIPassthroughState();
+}
+
+class _ReportsAIPassthroughState extends State<_ReportsAIPassthrough> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pop(); // Go back from gate screen
+      widget.onReady(); // Trigger feature
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
+}
+
+class _ReportsExportPassthrough extends StatefulWidget {
+  final VoidCallback onExport;
+  const _ReportsExportPassthrough({required this.onExport});
+  @override
+  State<_ReportsExportPassthrough> createState() =>
+      _ReportsExportPassthroughState();
+}
+
+class _ReportsExportPassthroughState extends State<_ReportsExportPassthrough> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pop();
+      widget.onExport();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
 }

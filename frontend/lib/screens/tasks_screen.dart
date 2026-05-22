@@ -9,6 +9,7 @@ import '../utils/app_theme.dart';
 import '../widgets/task_item.dart';
 import '../widgets/add_task_dialog.dart';
 import '../services/startio_ads.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -23,7 +24,6 @@ class _TasksScreenState extends State<TasksScreen>
   String _searchQuery = '';
   String _selectedPriority = 'All';
   String _sortBy = 'Date';
-  final int _completedTaskCount = 0;
 
   @override
   void initState() {
@@ -168,7 +168,7 @@ class _TasksScreenState extends State<TasksScreen>
             context: context,
             builder: (context) => const AddTaskDialog(),
           );
-          await StartIOAds.showInterstitial();
+          await StartIOAds.showInterstitial(context);
         },
         backgroundColor: AppTheme.primaryColor,
         icon: const FaIcon(
@@ -309,17 +309,20 @@ class _TasksScreenState extends State<TasksScreen>
         final categoryTasks = groupedTasks[category]!;
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCategoryHeader(category, categoryTasks.length),
-            ...categoryTasks.map((task) => TaskItem(task: task)),
-            if (index == 0) ...[
-              const SizedBox(height: 16),
-              const Center(child: StartioMrec()),
-            ],
-            const SizedBox(height: 16),
-          ],
-        );
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCategoryHeader(category, categoryTasks.length),
+                ...categoryTasks.map((task) => TaskItem(task: task)),
+                if (index == 0) ...[
+                  const SizedBox(height: 16),
+                  const Center(child: StartioMrec()),
+                ],
+                const SizedBox(height: 16),
+              ],
+            )
+            .animate(delay: (index * 50).ms)
+            .fadeIn(duration: 400.ms)
+            .slideY(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -589,7 +592,7 @@ class _TasksScreenState extends State<TasksScreen>
                 provider.deleteTask(task.id ?? '');
               }
               // Show high-revenue video ad after major action
-              await StartIOAds.showVideoInterstitial();
+              await StartIOAds.showVideoInterstitial(context);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

@@ -46,3 +46,15 @@ frontend/windows/flutter/
 *.aab
 *.ipa
 *.exe
+
+# JVM crash/heap dumps
+*.hprof
+
+# Temporary build & diff logs
+frontend/build_log.txt
+frontend/diff.txt
+
+# Database backups & configurations
+frontend/schema.sql.backup
+database/rzp-key.csv
+*.orig

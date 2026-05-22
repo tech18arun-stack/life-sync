@@ -13,6 +13,7 @@ import '../providers/savings_goal_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,8 +22,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
-    with SingleTickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -31,30 +31,14 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-        );
-    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -325,35 +309,43 @@ class _RegisterScreenState extends State<RegisterScreen>
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 1024;
-              
+
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: Responsive.getHorizontalPadding(context),
                   vertical: Responsive.isDesktop(context) ? 40 : 24,
                 ),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _slideAnimation,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isDesktop ? 550 : double.infinity,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isDesktop ? 550 : double.infinity,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(height: isDesktop ? 60 : 32),
+                      _buildHeader(isDark, context)
+                          .animate()
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
+                      SizedBox(height: isDesktop ? 48 : 32),
+                      _buildRegisterForm(authProvider, isDark, context)
+                          .animate(delay: 100.ms)
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
+                      SizedBox(height: isDesktop ? 32 : 24),
+                      _buildRegisterButton(authProvider, context)
+                          .animate(delay: 200.ms)
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
+                      SizedBox(height: isDesktop ? 32 : 24),
+                      _buildLoginLink(isDark, context)
+                          .animate(delay: 300.ms)
+                          .fadeIn(duration: 500.ms)
+                          .slideY(begin: 0.1, curve: Curves.easeOutQuad),
+                      SizedBox(
+                        height: Responsive.getHorizontalPadding(context),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(height: isDesktop ? 60 : 32),
-                          _buildHeader(isDark, context),
-                          SizedBox(height: isDesktop ? 48 : 32),
-                          _buildRegisterForm(authProvider, isDark, context),
-                          SizedBox(height: isDesktop ? 32 : 24),
-                          _buildRegisterButton(authProvider, context),
-                          SizedBox(height: isDesktop ? 32 : 24),
-                          _buildLoginLink(isDark, context),
-                          SizedBox(height: Responsive.getHorizontalPadding(context)),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               );
@@ -394,17 +386,18 @@ class _RegisterScreenState extends State<RegisterScreen>
         SizedBox(height: isDesktop ? 40 : (isTablet ? 32 : 28)),
         Text(
           'Create Admin Account',
-          style: GoogleFonts.inter(
-            fontSize: isDesktop
-                ? Responsive.getFontSize(context, FontSizeType.largeDisplay)
-                : Responsive.getFontSize(context, FontSizeType.headline),
-            fontWeight: FontWeight.bold,
-          ).copyWith(
-            foreground: Paint()
-              ..shader = AppTheme.oceanGradient.createShader(
-                const Rect.fromLTWH(0, 0, 200, 70),
+          style:
+              GoogleFonts.inter(
+                fontSize: isDesktop
+                    ? Responsive.getFontSize(context, FontSizeType.largeDisplay)
+                    : Responsive.getFontSize(context, FontSizeType.headline),
+                fontWeight: FontWeight.bold,
+              ).copyWith(
+                foreground: Paint()
+                  ..shader = AppTheme.oceanGradient.createShader(
+                    const Rect.fromLTWH(0, 0, 200, 70),
+                  ),
               ),
-          ),
         ),
         SizedBox(height: isDesktop ? 16 : (isTablet ? 12 : 8)),
         Container(
@@ -455,7 +448,11 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildRegisterForm(AuthProvider authProvider, bool isDark, BuildContext context) {
+  Widget _buildRegisterForm(
+    AuthProvider authProvider,
+    bool isDark,
+    BuildContext context,
+  ) {
     final isDesktop = Responsive.isDesktop(context);
     final isTablet = Responsive.isTablet(context);
     final cardRadius = isDesktop ? 32.0 : (isTablet ? 28.0 : 24.0);
@@ -710,7 +707,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                   Text(
                     'Register',
                     style: GoogleFonts.inter(
-                      fontSize: Responsive.getFontSize(context, FontSizeType.subtitle),
+                      fontSize: Responsive.getFontSize(
+                        context,
+                        FontSizeType.subtitle,
+                      ),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),

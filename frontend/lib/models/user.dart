@@ -16,6 +16,9 @@ class User {
   String? parentUserId; // The admin who created this client user
   String? familyId;
   String? relation;
+  bool isPremium;
+  DateTime? premiumExpiryDate;
+  String planType; // 'basic', 'premium', 'ultra'
 
   User({
     this.id,
@@ -32,6 +35,9 @@ class User {
     this.parentUserId,
     this.familyId,
     this.relation,
+    this.isPremium = false,
+    this.premiumExpiryDate,
+    this.planType = 'basic',
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -39,8 +45,8 @@ class User {
       id: json['id'] ?? json['_id'],
       name: json['name'] ?? '',
       email: json['email'] ?? '',
-      phone: json['phone'],
-      avatar: json['avatar'],
+      phone: json['phone'] ?? '',
+      avatar: json['avatar'] ?? '',
       isActive: json['is_active'] ?? json['isActive'] ?? true,
       lastLogin: json['last_login'] != null
           ? DateTime.parse(json['last_login'])
@@ -62,6 +68,13 @@ class User {
       parentUserId: json['parent_user_id'] ?? json['parentUserId'],
       familyId: json['family_id'] ?? json['familyId'],
       relation: json['relation'],
+      isPremium: json['is_premium'] ?? json['isPremium'] ?? false,
+      premiumExpiryDate: json['premium_expiry_date'] != null
+          ? DateTime.parse(json['premium_expiry_date'])
+          : (json['premiumExpiryDate'] != null
+                ? DateTime.parse(json['premiumExpiryDate'])
+                : null),
+      planType: json['plan_type'] ?? json['planType'] ?? 'basic',
     );
   }
 
@@ -78,6 +91,10 @@ class User {
       if (parentUserId != null) 'parent_user_id': parentUserId,
       if (familyId != null) 'family_id': familyId,
       if (relation != null) 'relation': relation,
+      'is_premium': isPremium,
+      if (premiumExpiryDate != null)
+        'premium_expiry_date': premiumExpiryDate!.toIso8601String(),
+      'plan_type': planType,
     };
   }
 
@@ -93,6 +110,9 @@ class User {
     String? parentUserId,
     String? familyId,
     String? relation,
+    bool? isPremium,
+    DateTime? premiumExpiryDate,
+    String? planType,
   }) {
     return User(
       id: id ?? this.id,
@@ -109,8 +129,21 @@ class User {
       parentUserId: parentUserId ?? this.parentUserId,
       familyId: familyId ?? this.familyId,
       relation: relation ?? this.relation,
+      isPremium: isPremium ?? this.isPremium,
+      premiumExpiryDate: premiumExpiryDate ?? this.premiumExpiryDate,
+      planType: planType ?? this.planType,
     );
   }
+
+  // Premium checks
+  bool get isPremiumActive {
+    if (!isPremium && planType == 'basic') return false;
+    if (premiumExpiryDate == null) return isPremium; // Legacy support or lifetime
+    return premiumExpiryDate!.isAfter(DateTime.now());
+  }
+
+  bool get isUltra => planType == 'ultra' && isPremiumActive;
+  bool get isPremiumOnly => planType == 'premium' && isPremiumActive;
 
   // User type checks
   bool get isAdmin => userType == 'admin';

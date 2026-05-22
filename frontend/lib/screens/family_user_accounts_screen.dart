@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../models/user.dart';
 import '../utils/app_theme.dart';
 import '../services/startio_ads.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 /// Screen for managing family member user accounts
 class FamilyUserAccountsScreen extends StatefulWidget {
@@ -136,7 +137,10 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
                           itemCount: _familyMembers.length,
                           itemBuilder: (context, index) {
                             final member = _familyMembers[index];
-                            return _buildMemberCard(member, isDark);
+                            return _buildMemberCard(member, isDark)
+                                .animate(delay: (index * 50).ms)
+                                .fadeIn(duration: 400.ms)
+                                .slideX(begin: 0.1, curve: Curves.easeOutQuad);
                           },
                         ),
                       ],
@@ -504,7 +508,7 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
           ),
         ],
       ),
-    ).then((_) => StartIOAds.showInterstitial());
+    ).then((_) => StartIOAds.showInterstitial(context));
   }
 
   Future<void> _toggleMemberActive(User member) async {
@@ -581,7 +585,7 @@ class _FamilyUserAccountsScreenState extends State<FamilyUserAccountsScreen> {
           ),
         ],
       ),
-    ).then((_) => StartIOAds.showInterstitial());
+    ).then((_) => StartIOAds.showInterstitial(context));
   }
 }
 
@@ -668,7 +672,7 @@ class _AddEditFamilyUserSheetState extends State<AddEditFamilyUserSheet> {
       if (result['success']) {
         Navigator.pop(context);
         widget.onSaved();
-        StartIOAds.showInterstitial();
+        StartIOAds.showInterstitial(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

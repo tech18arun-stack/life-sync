@@ -8,10 +8,23 @@ import sys
 from appwrite.client import Client
 from appwrite.services.databases import Databases
 
-ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://api.edizo.in/v1")
-PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "69aa6e89000b08e67a76")
+def load_env():
+    env_path = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+        print("✅ Loaded environment from .env")
+
+load_env()
+
+ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://api.websitescorp.com/v1")
+PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "69e45bf20039aebb88ac")
 API_KEY = os.getenv("APPWRITE_API_KEY")
-DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "Life_db")
+DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "69e45c7d001156126993")
 
 if not API_KEY:
     print("ERROR: APPWRITE_API_KEY environment variable is required!")

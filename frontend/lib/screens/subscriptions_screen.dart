@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/subscription_provider.dart';
 import '../models/subscription.dart';
 import '../utils/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class SubscriptionsScreen extends StatelessWidget {
   const SubscriptionsScreen({super.key});
@@ -36,13 +37,18 @@ class SubscriptionsScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final sub = subProvider.subscriptions[index];
-                        return _buildSubscriptionCard(context, sub, subProvider, isDark);
-                      },
-                      childCount: subProvider.subscriptions.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final sub = subProvider.subscriptions[index];
+                      return _buildSubscriptionCard(
+                            context,
+                            sub,
+                            subProvider,
+                            isDark,
+                          )
+                          .animate(delay: (index * 50).ms)
+                          .fadeIn(duration: 400.ms)
+                          .slideX(begin: 0.1, curve: Curves.easeOutQuad);
+                    }, childCount: subProvider.subscriptions.length),
                   ),
                 ),
                 if (subProvider.subscriptions.isEmpty)
@@ -64,7 +70,11 @@ class SubscriptionsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, SubscriptionProvider provider, bool isDark) {
+  Widget _buildSummaryCard(
+    BuildContext context,
+    SubscriptionProvider provider,
+    bool isDark,
+  ) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
@@ -129,7 +139,7 @@ class SubscriptionsScreen extends StatelessWidget {
     bool isDark,
   ) {
     final daysLeft = sub.nextBillingDate.difference(DateTime.now()).inDays;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -172,10 +182,7 @@ class SubscriptionsScreen extends StatelessWidget {
                 ),
                 Text(
                   'Next: ${DateFormat('MMM dd').format(sub.nextBillingDate)} ($daysLeft days left)',
-                  style: GoogleFonts.inter(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -193,15 +200,16 @@ class SubscriptionsScreen extends StatelessWidget {
               ),
               Text(
                 sub.billingCycle,
-                style: GoogleFonts.inter(
-                  color: Colors.grey,
-                  fontSize: 10,
-                ),
+                style: GoogleFonts.inter(color: Colors.grey, fontSize: 10),
               ),
             ],
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.grey,
+              size: 20,
+            ),
             onPressed: () => provider.deleteSubscription(sub.id),
           ),
         ],
@@ -245,7 +253,9 @@ class SubscriptionsScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomPadding),
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -276,10 +286,14 @@ class SubscriptionsScreen extends StatelessWidget {
                         labelText: 'Service Name',
                         hintText: 'e.g. Netflix, Spotify',
                         prefixIcon: const Icon(Icons.subscriptions_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                          borderSide: BorderSide(
+                            color: Colors.grey.withOpacity(0.3),
+                          ),
                         ),
                       ),
                     ),
@@ -291,12 +305,18 @@ class SubscriptionsScreen extends StatelessWidget {
                       decoration: InputDecoration(
                         labelText: 'Price',
                         hintText: '0.00',
-                        prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+                        prefixIcon: const Icon(
+                          Icons.account_balance_wallet_outlined,
+                        ),
                         suffixText: 'INR',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                          borderSide: BorderSide(
+                            color: Colors.grey.withOpacity(0.3),
+                          ),
                         ),
                       ),
                     ),
@@ -308,12 +328,33 @@ class SubscriptionsScreen extends StatelessWidget {
                             initialValue: category,
                             decoration: InputDecoration(
                               labelText: 'Category',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                             ),
-                            items: ['Entertainment', 'Music', 'Shopping', 'Software', 'Other']
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 14))))
-                                .toList(),
+                            items:
+                                [
+                                      'Entertainment',
+                                      'Music',
+                                      'Shopping',
+                                      'Software',
+                                      'Other',
+                                    ]
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c,
+                                        child: Text(
+                                          c,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
                             onChanged: (v) => setState(() => category = v!),
                           ),
                         ),
@@ -323,11 +364,23 @@ class SubscriptionsScreen extends StatelessWidget {
                             initialValue: cycle,
                             decoration: InputDecoration(
                               labelText: 'Cycle',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                             ),
                             items: ['Monthly', 'Yearly']
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 14))))
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(
+                                      c,
+                                      style: GoogleFonts.inter(fontSize: 14),
+                                    ),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (v) => setState(() => cycle = v!),
                           ),
@@ -341,13 +394,17 @@ class SubscriptionsScreen extends StatelessWidget {
                           context: context,
                           initialDate: selectedDate,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365 * 10),
+                          ),
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
                                 colorScheme: ColorScheme.fromSeed(
                                   seedColor: AppTheme.primaryColor,
-                                  brightness: isDark ? Brightness.dark : Brightness.light,
+                                  brightness: isDark
+                                      ? Brightness.dark
+                                      : Brightness.light,
                                 ),
                               ),
                               child: child!,
@@ -362,22 +419,34 @@ class SubscriptionsScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.grey.withOpacity(0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_month, color: AppTheme.primaryColor),
+                            const Icon(
+                              Icons.calendar_month,
+                              color: AppTheme.primaryColor,
+                            ),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Next Billing Date',
-                                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                                 Text(
-                                  DateFormat('MMM dd, yyyy').format(selectedDate),
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                                  DateFormat(
+                                    'MMM dd, yyyy',
+                                  ).format(selectedDate),
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -393,7 +462,8 @@ class SubscriptionsScreen extends StatelessWidget {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () {
-                          if (nameController.text.isNotEmpty && amountController.text.isNotEmpty) {
+                          if (nameController.text.isNotEmpty &&
+                              amountController.text.isNotEmpty) {
                             final sub = Subscription(
                               id: '', // Will be set by Appwrite
                               name: nameController.text,
@@ -402,13 +472,18 @@ class SubscriptionsScreen extends StatelessWidget {
                               category: category,
                               billingCycle: cycle,
                             );
-                            Provider.of<SubscriptionProvider>(context, listen: false).addSubscription(sub);
+                            Provider.of<SubscriptionProvider>(
+                              context,
+                              listen: false,
+                            ).addSubscription(sub);
                             Navigator.pop(context);
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                           elevation: 0,
                         ),
                         child: Text(

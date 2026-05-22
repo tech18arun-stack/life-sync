@@ -180,6 +180,15 @@ class FinancialDataManager with ChangeNotifier {
     return getIncomeByPeriod(startOfMonth, endOfMonth);
   }
 
+  /// Get income from all months EXCEPT the current month
+  double getOtherMonthsIncome() {
+    final now = DateTime.now();
+    final startOfCurrentMonth = DateTime(now.year, now.month, 1);
+    return _incomes
+        .where((i) => i.date.isBefore(startOfCurrentMonth))
+        .fold(0.0, (sum, income) => sum + income.amount);
+  }
+
   double getIncomeForMonth(DateTime month) {
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0);
@@ -657,6 +666,34 @@ class FinancialDataManager with ChangeNotifier {
       );
   }
 
+  Map<String, dynamic> getWeeklySpendingComparison() {
+    final now = DateTime.now();
+    final startOfThisWeek = now.subtract(Duration(days: now.weekday - 1));
+    final startOfLastWeek = startOfThisWeek.subtract(const Duration(days: 7));
+    
+    final thisWeekExpenses = _expenses.where((e) => 
+      e.date.isAfter(startOfThisWeek.subtract(const Duration(seconds: 1))) &&
+      e.date.isBefore(now.add(const Duration(seconds: 1)))
+    ).fold(0.0, (sum, e) => sum + e.amount);
+
+    final lastWeekExpenses = _expenses.where((e) => 
+      e.date.isAfter(startOfLastWeek.subtract(const Duration(seconds: 1))) &&
+      e.date.isBefore(startOfThisWeek)
+    ).fold(0.0, (sum, e) => sum + e.amount);
+
+    double percentageChange = 0;
+    if (lastWeekExpenses > 0) {
+      percentageChange = ((thisWeekExpenses - lastWeekExpenses) / lastWeekExpenses) * 100;
+    }
+
+    return {
+      'thisWeek': thisWeekExpenses,
+      'lastWeek': lastWeekExpenses,
+      'percentageChange': percentageChange,
+      'isIncrease': thisWeekExpenses > lastWeekExpenses,
+    };
+  }
+
   // ======================== MONTHLY/YEARLY CALCULATIONS ========================
 
   double getAvailableBalance() => getTotalIncome() - getTotalExpenses();
@@ -672,6 +709,15 @@ class FinancialDataManager with ChangeNotifier {
       startOfMonth,
       endOfMonth,
     ).fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  /// Get expenses from all months EXCEPT the current month
+  double getOtherMonthsExpenses() {
+    final now = DateTime.now();
+    final startOfCurrentMonth = DateTime(now.year, now.month, 1);
+    return _expenses
+        .where((e) => e.date.isBefore(startOfCurrentMonth))
+        .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
   double getExpensesForMonth(DateTime month) {
@@ -770,6 +816,17 @@ class FinancialDataManager with ChangeNotifier {
     );
 
     return hasIncome || hasExpenses;
+  }
+
+  /// Combined Recent Transactions (Income + Expenses)
+  List<dynamic> getRecentTransactions({int limit = 10}) {
+    final List<dynamic> all = [..._expenses, ..._incomes];
+    all.sort((a, b) {
+      final aDate = (a as dynamic).date as DateTime;
+      final bDate = (b as dynamic).date as DateTime;
+      return bDate.compareTo(aDate);
+    });
+    return all.take(limit).toList();
   }
 
   /// Check if there's any historical financial data (any month)

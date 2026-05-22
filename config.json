@@ -1,22 +1,62 @@
 {
   "app": {
     "name": "LifeSync",
-    "latest_version": "3.0.0",
-    "min_supported_version": "2.1.8",
+    "latest_version": "4.7.5",
+    "min_supported_version": "3.0.0",
     "force_update": false,
-    "update_message": "A new version of LifeSync is available. Please update to continue.",
-    "download_url": "https://api.edizo.in/v1/storage/buckets/69acfcf60024404afaa4/files/69acfdcf002d08034108/download?project=69aa6e89000b08e67a76"
+    "update_message": "A stunning new Premium update! Experience fluid glassmorphism UI, animated circular balance dials, and unlock premium AI features by watching short ads! 🚀",
+    "download_url": "https://api.websitescorp.com/v1/storage/buckets/69e4605e001223294a58/files/69e463580032cf0b592f/download?project=69e45bf20039aebb88ac&mode=admin",
+    "indus_store_url": "https://indusappstore.com/apps/lifesync",
+    "play_store_url": ""
   },
   "server": {
-    "api_base_url": "https://api.edizo.in/v1",
-    "backup_api_url": "https://api.edizo.in/v1",
+    "api_base_url": "https://api.websitescorp.com/v1",
+    "backup_api_url": "https://api.websitescorp.com/v1",
     "timeout": 30
   },
   "features": {
     "maintenance_mode": false,
     "login_enabled": true,
     "registration_enabled": true,
-    "ads_enabled": true
+    "ads_enabled": true,
+    "sms_tracking_enabled": true,
+    "habit_tracker_enabled": true,
+    "mood_tracker_enabled": true,
+    "ai_insights_enabled": true,
+    "premium_monthly_cost": 29,
+    "premium_ultra_monthly_cost": 49,
+    "premium_yearly_cost": 299,
+    "razorpay_key": "rzp_live_SSlQnbynKOMOSg",
+    "plans": {
+      "basic": {
+        "features": [
+          "Manual Expense Tracking",
+          "Budget Management",
+          "Basic AI Insights (with ads)"
+        ],
+        "has_ads": true
+      },
+      "premium": {
+        "features": [
+          "Ad-free Experience",
+          "SMS Automated Tracking",
+          "Premium Glassmorphic UI",
+          "All AI Features",
+          "Cloud Sync"
+        ],
+        "has_ads": false
+      },
+      "ultra": {
+        "features": [
+          "Custom App Icon",
+          "Interactive Circular Dials",
+          "Real-time Money Tracking",
+          "Advanced Financial Activity Charts",
+          "Priority 24/7 Support"
+        ],
+        "has_ads": false
+      }
+    }
   },
   "ads": {
     "startio_enabled": true,
@@ -32,7 +72,7 @@
     "message": ""
   },
   "support": {
-    "email": "support@edizo.in",
-    "website": "https://www.edizo.in"
+    "email": "ceo@websitescorp.com",
+    "website": "https://www.websitescorp.com"
   }
 }

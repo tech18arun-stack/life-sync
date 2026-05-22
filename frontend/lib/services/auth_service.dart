@@ -4,11 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart' as AppUser;
 import 'appwrite_service.dart';
+import 'notification_service.dart';
 
 /// Authentication Service for user login/register using Appwrite
-/// 
+///
 /// This service replaces the Supabase authentication with Appwrite Auth.
-/// 
+///
 /// User roles:
 /// - Owner: Full access
 /// - Member: Family member access
@@ -23,7 +24,7 @@ class AuthService {
   AuthService._internal();
 
   final AppwriteService _appwrite = AppwriteService();
-  
+
   String? _token;
   AppUser.User? _currentUser;
 
@@ -43,17 +44,36 @@ class AuthService {
       if (userJson != null) {
         // Load user data from storage
         _currentUser = AppUser.User.fromJson(jsonDecode(userJson));
-        
-        debugPrint('✅ Found stored user: ${_currentUser?.email} (ID: ${_currentUser?.id})');
+
+        debugPrint(
+          '✅ Found stored user: ${_currentUser?.email} (ID: ${_currentUser?.id})',
+        );
+        debugPrint('  - isPremium (cached): ${_currentUser?.isPremium}');
+        debugPrint(
+          '  - premiumExpiryDate (cached): ${_currentUser?.premiumExpiryDate}',
+        );
+        debugPrint(
+          '  - isPremiumActive (cached): ${_currentUser?.isPremiumActive}',
+        );
 
         // Verify session is still valid with Appwrite
         try {
-          final session = await _appwrite.account.getSession(sessionId: 'current');
+          final session = await _appwrite.account.getSession(
+            sessionId: 'current',
+          );
           debugPrint('✅ Session valid: ${session.$id}');
-          
-          // Refresh user profile from database
+
+          // Refresh user profile from database (this will get latest premium status)
           await _loadUserProfile();
-          debugPrint('✅ User profile refreshed');
+
+          // Schedule premium expiry notifications if applicable
+          if (_currentUser?.isPremiumActive == true &&
+              _currentUser?.premiumExpiryDate != null) {
+            NotificationService().schedulePremiumExpiryNotifications(
+              _currentUser!.premiumExpiryDate!,
+            );
+          }
+
           return true;
         } catch (e) {
           // Session invalid or expired
@@ -64,7 +84,7 @@ class AuthService {
           return false;
         }
       }
-      
+
       debugPrint('ℹ️ No stored user data found');
       return false;
     } catch (e) {
@@ -82,7 +102,7 @@ class AuthService {
   }) async {
     try {
       debugPrint('📝 Attempting registration for: $email');
-      
+
       // Create Appwrite account
       final user = await _appwrite.account.create(
         userId: ID.unique(),
@@ -113,7 +133,7 @@ class AuthService {
       // Create user profile in database
       await _createUserProfile(_currentUser!);
       debugPrint('✅ User profile created in database');
-      
+
       // Save user data to local storage
       await _saveAuthData();
       debugPrint('✅ User data saved to local storage');
@@ -121,14 +141,12 @@ class AuthService {
       return {
         'success': true,
         'user': _currentUser,
-        'requiresConfirmation': false, // Appwrite doesn't require email confirmation by default
+        'requiresConfirmation':
+            false, // Appwrite doesn't require email confirmation by default
       };
     } catch (e) {
       debugPrint('❌ Error registering: $e');
-      return {
-        'success': false,
-        'error': _getErrorMessage(e),
-      };
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
 
@@ -139,7 +157,7 @@ class AuthService {
   }) async {
     try {
       debugPrint('🔐 Attempting login for: $email');
-      
+
       // Create email password session
       await _appwrite.account.createEmailPasswordSession(
         email: email,
@@ -147,45 +165,51 @@ class AuthService {
       );
       debugPrint('✅ Session created');
 
-      // Get current user
-      final user = await _appwrite.account.get();
-      debugPrint('✅ Appwrite user: ${user.email} (ID: ${user.$id})');
-
-      // Load user profile from database to get user type
-      await _loadUserProfile();
-
-      if (_currentUser == null) {
-        // If no profile exists, create one (first login or legacy user)
-        _currentUser = AppUser.User(
-          id: user.$id,
-          name: user.name ?? '',
-          email: user.email ?? '',
-          phone: user.phone ?? '',
-          userType: 'admin', // Default to admin for existing users
-          role: 'owner',
-          createdAt: DateTime.now(),
-        );
-        await _createUserProfile(_currentUser!);
-        debugPrint('✅ Created user profile in database');
-      } else {
-        debugPrint('✅ Loaded existing user profile: ${_currentUser?.email}');
-      }
-
-      // Update last login
-      await _updateLastLogin();
-      
-      // Save user data to local storage
-      await _saveAuthData();
-      debugPrint('✅ User data saved to local storage');
-
-      return {'success': true, 'user': _currentUser};
+      // Get current user and load profile
+      return await _finalizeLogin();
     } catch (e) {
       debugPrint('❌ Error logging in: $e');
-      return {
-        'success': false,
-        'error': _getErrorMessage(e),
-      };
+      return {'success': false, 'error': _getErrorMessage(e)};
     }
+  }
+
+  /// Helper to finalize login process (load/create profile, save data)
+  Future<Map<String, dynamic>> _finalizeLogin() async {
+    // Get current user
+    final user = await _appwrite.account.get();
+    debugPrint('✅ Appwrite user: ${user.email} (ID: ${user.$id})');
+
+    // Load user profile from database
+    await _loadUserProfile();
+
+    if (_currentUser == null) {
+      // Create new profile if it doesn't exist
+      _currentUser = AppUser.User(
+        id: user.$id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: 'admin',
+        role: 'owner',
+        createdAt: DateTime.now(),
+      );
+      await _createUserProfile(_currentUser!);
+      debugPrint('✅ Created new user profile');
+    }
+
+    // Update last login and persist data
+    await _updateLastLogin();
+    await _saveAuthData();
+
+    // Schedule notifications
+    if (_currentUser?.isPremiumActive == true &&
+        _currentUser?.premiumExpiryDate != null) {
+      NotificationService().schedulePremiumExpiryNotifications(
+        _currentUser!.premiumExpiryDate!,
+      );
+    }
+
+    return {'success': true, 'user': _currentUser};
   }
 
   /// Logout user
@@ -216,10 +240,9 @@ class AuthService {
         collectionId: AppwriteService.userProfilesCollection,
         documentId: user.id!,
         data: {
-          'id': user.id,
-          'name': user.name ?? '',
-          'email': user.email ?? '',
-          'phone': user.phone ?? '',
+          'name': user.name,
+          'email': user.email,
+          'phone': user.phone,
           'avatar': user.avatar ?? '',
           'user_type': user.userType,
           'role': user.role,
@@ -227,6 +250,9 @@ class AuthService {
           'family_id': user.familyId ?? '',
           'relation': user.relation ?? '',
           'is_active': user.isActive,
+          'is_premium': user.isPremium,
+          'plan_type': user.planType,
+          'premium_expiry_date': user.premiumExpiryDate?.toIso8601String(),
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         },
@@ -240,9 +266,9 @@ class AuthService {
       debugPrint('Error creating user profile: $e');
       // Profile might already exist, try update instead
       await _updateUserProfileInDb(user.id!, {
-        'name': user.name ?? '',
-        'email': user.email ?? '',
-        'phone': user.phone ?? '',
+        'name': user.name,
+        'email': user.email,
+        'phone': user.phone,
         'avatar': user.avatar ?? '',
         'user_type': user.userType,
         'role': user.role,
@@ -253,8 +279,13 @@ class AuthService {
   /// Load user profile from database
   Future<void> _loadUserProfile() async {
     try {
-      final userId = _appwrite.currentUserId;
-      if (userId == null) return;
+      // Use async method for reliability after OAuth
+      String? userId = await _appwrite.getCurrentUserId();
+
+      if (userId == null) {
+        debugPrint('⚠️ No user ID available');
+        return;
+      }
 
       final document = await _appwrite.databases.getDocument(
         databaseId: AppwriteService.databaseId,
@@ -262,25 +293,32 @@ class AuthService {
         documentId: userId,
       );
 
-      _currentUser = AppUser.User.fromJson({...document.data, 'id': document.$id});
+      _currentUser = AppUser.User.fromJson({
+        ...document.data,
+        'id': document.$id,
+      });
+
+      debugPrint('📋 User profile loaded from database:');
+      debugPrint('  - Email: ${_currentUser?.email}');
+      debugPrint('  - isPremium: ${_currentUser?.isPremium}');
+      debugPrint('  - premiumExpiryDate: ${_currentUser?.premiumExpiryDate}');
+      debugPrint('  - isPremiumActive: ${_currentUser?.isPremiumActive}');
     } catch (e) {
-      debugPrint('Error loading user profile: $e');
+      debugPrint('❌ Error loading user profile: $e');
     }
   }
 
   /// Update last login timestamp
   Future<void> _updateLastLogin() async {
     try {
-      final userId = _appwrite.currentUserId;
+      final userId = await _appwrite.getCurrentUserId();
       if (userId == null) return;
 
       await _appwrite.databases.updateDocument(
         databaseId: AppwriteService.databaseId,
         collectionId: AppwriteService.userProfilesCollection,
         documentId: userId,
-        data: {
-          'last_login': DateTime.now().toIso8601String(),
-        },
+        data: {'last_login': DateTime.now().toIso8601String()},
       );
     } catch (e) {
       debugPrint('Error updating last login: $e');
@@ -288,7 +326,10 @@ class AuthService {
   }
 
   /// Update user profile in database
-  Future<void> _updateUserProfileInDb(String userId, Map<String, dynamic> data) async {
+  Future<void> _updateUserProfileInDb(
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
     try {
       data['updated_at'] = DateTime.now().toIso8601String();
       await _appwrite.databases.updateDocument(
@@ -309,7 +350,7 @@ class AuthService {
     String? avatar,
   }) async {
     try {
-      final userId = _appwrite.currentUserId;
+      final userId = await _appwrite.getCurrentUserId();
       if (userId == null) {
         return {'success': false, 'error': 'User not logged in'};
       }
@@ -324,7 +365,7 @@ class AuthService {
       if (name != null) updates['name'] = name;
       if (phone != null) updates['phone'] = phone;
       if (avatar != null) updates['avatar'] = avatar;
-      
+
       await _updateUserProfileInDb(userId, updates);
 
       // Update local user object
@@ -363,17 +404,84 @@ class AuthService {
     try {
       // Get the app's origin URL for password reset redirect
       final origin = 'lifesync://'; // Deep link scheme
-      
-      await _appwrite.account.createRecovery(
-        email: email,
-        url: origin,
-      );
+
+      await _appwrite.account.createRecovery(email: email, url: origin);
       return {
         'success': true,
         'message': 'Password reset email sent to $email',
       };
     } catch (e) {
       debugPrint('Error resetting password: $e');
+      return {'success': false, 'error': _getErrorMessage(e)};
+    }
+  }
+
+  /// Refresh the current user profile from the database
+  /// Called after premium upgrade to get the latest status
+  Future<void> refreshCurrentUser() async {
+    try {
+      await _loadUserProfile();
+      await _saveAuthData();
+      debugPrint('✅ User profile refreshed and saved');
+      debugPrint('  - isPremiumActive: ${_currentUser?.isPremiumActive}');
+    } catch (e) {
+      debugPrint('❌ Error refreshing user: $e');
+    }
+  }
+
+  /// Upgrade current user to premium
+  Future<Map<String, dynamic>> upgradeToPremium({
+    int days = 30,
+    String planType = 'premium',
+  }) async {
+    try {
+      final userId = await _appwrite.getCurrentUserId();
+      if (userId == null) {
+        return {'success': false, 'error': 'User not logged in'};
+      }
+
+      DateTime expiryDate;
+      if (_currentUser?.isPremiumActive == true &&
+          _currentUser?.premiumExpiryDate != null) {
+        // Extend existing active subscription
+        expiryDate = _currentUser!.premiumExpiryDate!.add(Duration(days: days));
+      } else {
+        // Start new subscription
+        expiryDate = DateTime.now().add(Duration(days: days));
+      }
+
+      debugPrint('⬆️ Upgrading user to premium:');
+      debugPrint('  - User ID: $userId');
+      debugPrint('  - Plan Type: $planType');
+      debugPrint('  - New Expiry Date: ${expiryDate.toIso8601String()}');
+
+      await _updateUserProfileInDb(userId, {
+        'is_premium': true,
+        'plan_type': planType,
+        'premium_expiry_date': expiryDate.toIso8601String(),
+      });
+
+      debugPrint('✅ Database updated successfully');
+
+      // Update local user object
+      _currentUser = _currentUser?.copyWith(
+        isPremium: true,
+        planType: planType,
+        premiumExpiryDate: expiryDate,
+      );
+      await _saveAuthData();
+
+      debugPrint('✅ Local storage updated');
+
+      // Trigger Notifications
+      await NotificationService().showPremiumPaidNotification(planType);
+      await NotificationService().schedulePremiumExpiryNotifications(
+        expiryDate,
+      );
+
+      return {'success': true, 'user': _currentUser};
+    } catch (e) {
+      debugPrint('❌ Error upgrading to premium: $e');
       return {'success': false, 'error': _getErrorMessage(e)};
     }
   }
@@ -461,7 +569,6 @@ class AuthService {
         collectionId: AppwriteService.userProfilesCollection,
         documentId: user.$id,
         data: {
-          'id': user.$id,
           'name': name,
           'email': email,
           'phone': phone ?? '',
@@ -471,6 +578,7 @@ class AuthService {
           'family_id': familyId,
           'relation': relation ?? '',
           'is_active': true,
+          'is_premium': false, // New members start as non-premium
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         },
@@ -515,10 +623,7 @@ class AuthService {
       final documentList = await _appwrite.databases.listDocuments(
         databaseId: AppwriteService.databaseId,
         collectionId: AppwriteService.userProfilesCollection,
-        queries: [
-          'parent_user_id="$adminId"',
-          'user_type="client"',
-        ],
+        queries: ['parent_user_id="$adminId"', 'user_type="client"'],
       );
 
       return documentList.documents
@@ -592,10 +697,7 @@ class AuthService {
         data: {'is_active': false},
       );
 
-      return {
-        'success': true,
-        'message': 'Family member account deactivated',
-      };
+      return {'success': true, 'message': 'Family member account deactivated'};
     } catch (e) {
       debugPrint('Error deleting family member user: $e');
       return {'success': false, 'error': _getErrorMessage(e)};
@@ -644,11 +746,15 @@ class AuthService {
   Future<List<Map<String, dynamic>>> getSessions() async {
     try {
       final sessions = await _appwrite.account.listSessions();
-      return sessions.sessions.map((s) => {
-        'userId': s.userId,
-        'provider': s.provider,
-        'expire': s.expire,
-      }).toList();
+      return sessions.sessions
+          .map(
+            (s) => {
+              'userId': s.userId,
+              'provider': s.provider,
+              'expire': s.expire,
+            },
+          )
+          .toList();
     } catch (e) {
       debugPrint('Error getting sessions: $e');
       return [];

@@ -6,7 +6,7 @@ import '../services/auth_service.dart';
 
 /// Authentication Provider for state management
 ///
-/// Updated for Appwrite authentication.
+/// Updated for Appwrite authentication flow.
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
 
@@ -90,6 +90,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+
   /// Logout user
   Future<void> logout() async {
     _isLoading = true;
@@ -98,6 +99,13 @@ class AuthProvider with ChangeNotifier {
     await _authService.logout();
 
     _isLoading = false;
+    _isInitialized = false; // Reset so initialize() works after re-login
+    notifyListeners();
+  }
+
+  /// Refresh current user profile from database (used after premium upgrade)
+  Future<void> refreshUser() async {
+    await _authService.refreshCurrentUser();
     notifyListeners();
   }
 
@@ -211,5 +219,23 @@ class AuthProvider with ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// Upgrade current user to premium
+  Future<bool> upgradeToPremium({int days = 30, String planType = 'premium'}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _authService.upgradeToPremium(days: days, planType: planType);
+
+    _isLoading = false;
+    if (result['success']) {
+      notifyListeners();
+      return true;
+    } else {
+      _error = result['error'];
+      notifyListeners();
+      return false;
+    }
   }
 }

@@ -13,7 +13,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/savings_goal_provider.dart';
 import '../services/config_service.dart';
-import '../widgets/app_updater_dialog.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -146,45 +145,9 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Check for updates
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-      final config = ConfigService();
-
-      if (currentVersion != config.latestVersion) {
-        if (config.forceUpdate) {
-          if (!mounted) return;
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AppUpdaterDialog(
-              downloadUrl: config.downloadUrl,
-              latestVersion: config.latestVersion,
-              releaseNotes: config.updateMessage,
-              forceUpdate: true,
-            ),
-          );
-          return; // Stop execution, forcing them to update
-        } else {
-          // Optional update
-          if (mounted) {
-            await showDialog(
-              context: context,
-              barrierDismissible: true,
-              builder: (_) => AppUpdaterDialog(
-                downloadUrl: config.downloadUrl,
-                latestVersion: config.latestVersion,
-                releaseNotes: config.updateMessage,
-                forceUpdate: false,
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error checking version: $e');
-    }
+    // Force refresh config on app launch to get latest premium cost
+    await ConfigService().refreshConfig();
+    ConfigService().debugPrintConfig();
 
     if (!mounted) return;
 
@@ -362,15 +325,6 @@ class _SplashScreenState extends State<SplashScreen>
                 FontAwesomeIcons.wallet,
                 'Finance',
                 AppTheme.warningColor,
-              ),
-            ),
-            const SizedBox(width: 40),
-            Transform.translate(
-              offset: Offset(0, _iconSlide3.value),
-              child: _buildFeatureIcon(
-                FontAwesomeIcons.heartPulse,
-                'Health',
-                AppTheme.errorColor,
               ),
             ),
           ],

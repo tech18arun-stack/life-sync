@@ -6,10 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/financial_data_manager.dart';
 import '../utils/app_theme.dart';
-// import '../utils/responsive.dart'; // TODO: Add responsive updates
+import 'package:flutter_animate/flutter_animate.dart';
 import '../widgets/add_income_dialog.dart';
 import '../services/startio_ads.dart';
 import 'recent_income_screen.dart';
+import '../services/gemini_service.dart';
 
 class IncomeScreen extends StatefulWidget {
   const IncomeScreen({super.key});
@@ -93,7 +94,7 @@ class _IncomeScreenState extends State<IncomeScreen>
               context: context,
               builder: (context) => const AddIncomeDialog(),
             );
-            await StartIOAds.showInterstitial();
+            await StartIOAds.showInterstitial(context);
           },
           backgroundColor: AppTheme.successColor,
           foregroundColor: Colors.white,
@@ -354,6 +355,11 @@ class _IncomeScreenState extends State<IncomeScreen>
           ),
         ),
 
+        const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+        // AI Projection Card
+        SliverToBoxAdapter(child: _buildAIProjectionCard(context, manager)),
+
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
         // Statistics Grid
@@ -507,15 +513,18 @@ class _IncomeScreenState extends State<IncomeScreen>
         final monthAvailable = monthIncome - monthExpenses;
 
         return _buildMonthCard(
-          context,
-          month,
-          monthIncome,
-          monthExpenses,
-          monthAvailable,
-          cardColor,
-          textPrimary,
-          textSecondary,
-        );
+              context,
+              month,
+              monthIncome,
+              monthExpenses,
+              monthAvailable,
+              cardColor,
+              textPrimary,
+              textSecondary,
+            )
+            .animate(delay: (index * 50).ms)
+            .fadeIn()
+            .slideY(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -540,15 +549,18 @@ class _IncomeScreenState extends State<IncomeScreen>
         final yearAvailable = yearIncome - yearExpenses;
 
         return _buildYearCard(
-          context,
-          year,
-          yearIncome,
-          yearExpenses,
-          yearAvailable,
-          cardColor,
-          textPrimary,
-          textSecondary,
-        );
+              context,
+              year,
+              yearIncome,
+              yearExpenses,
+              yearAvailable,
+              cardColor,
+              textPrimary,
+              textSecondary,
+            )
+            .animate(delay: (index * 50).ms)
+            .fadeIn()
+            .slideY(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -572,12 +584,12 @@ class _IncomeScreenState extends State<IncomeScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isCurrentMonth
-            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+            ? AppTheme.primaryColor.withOpacity(0.1)
             : cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isCurrentMonth
-              ? AppTheme.primaryColor.withValues(alpha: 0.3)
+              ? AppTheme.primaryColor.withOpacity(0.3)
               : Colors.transparent,
           width: isCurrentMonth ? 2 : 1,
         ),
@@ -672,7 +684,7 @@ class _IncomeScreenState extends State<IncomeScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isCurrentYear
-              ? AppTheme.accentColor.withValues(alpha: 0.4)
+              ? AppTheme.accentColor.withOpacity(0.4)
               : Colors.transparent,
           width: isCurrentYear ? 2 : 1,
         ),
@@ -726,7 +738,7 @@ class _IncomeScreenState extends State<IncomeScreen>
           const SizedBox(height: 4),
           Text('Net Balance', style: GoogleFonts.inter(color: textSecondary)),
           const SizedBox(height: 20),
-          Divider(color: Colors.grey.withValues(alpha: 0.2)),
+          Divider(color: Colors.grey.withOpacity(0.2)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -880,10 +892,7 @@ class _IncomeScreenState extends State<IncomeScreen>
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(
-          color: color.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.1), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1126,6 +1135,113 @@ class _IncomeScreenState extends State<IncomeScreen>
           ),
         );
       }, childCount: incomes.length),
+    );
+  }
+
+  Widget _buildAIProjectionCard(
+    BuildContext context,
+    FinancialDataManager manager,
+  ) {
+    final gemini = Provider.of<GeminiService>(context, listen: false);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.accentColor.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const FaIcon(
+                  FontAwesomeIcons.brain,
+                  color: AppTheme.accentColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'AI Future Projection',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () async {
+                    final isEnabled = await gemini.isAIEnabled();
+                    if (!isEnabled) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Enable AI in Settings')),
+                      );
+                      return;
+                    }
+                    setState(() {}); // Trigger refresh for FutureBuilder
+                  },
+                  child: const Icon(
+                    Icons.refresh,
+                    size: 20,
+                    color: AppTheme.accentColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            FutureBuilder<Map<String, dynamic>>(
+              future: gemini.predictMonthlyExpenses(
+                historicalExpenses: manager.expenses,
+                monthsBack: 6,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: LinearProgressIndicator());
+                }
+                if (snapshot.hasError ||
+                    (snapshot.data != null &&
+                        snapshot.data!.containsKey('error'))) {
+                  return const Text('Prediction unavailable. Add more data.');
+                }
+                final data = snapshot.data!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Next Month Forecast:',
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
+                        Text(
+                          '₹${data['prediction']}',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppTheme.errorColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Reasoning: ${data['reasoning']}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

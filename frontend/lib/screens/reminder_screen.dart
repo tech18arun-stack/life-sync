@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/reminder_provider.dart';
 import '../providers/financial_data_manager.dart';
 import '../services/gemini_service.dart';
 import '../models/reminder.dart';
 import '../models/expense.dart';
 import '../utils/app_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/add_reminder_dialog.dart';
+import '../widgets/premium_components.dart';
 import '../services/startio_ads.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
@@ -70,102 +74,142 @@ class _ReminderScreenState extends State<ReminderScreen>
           );
         },
       ),
-      floatingActionButton: _buildModernFAB(context),
+      floatingActionButton: PremiumFAB(
+        onPressed: () => showDialog(
+          context: context,
+          builder: (context) => const AddReminderDialog(),
+        ),
+        label: 'New Bill',
+        icon: Icons.add_rounded,
+      ),
     );
   }
 
   Widget _buildModernAppBar(BuildContext context, ReminderProvider provider) {
-    final totalPending = provider.getPendingReminders().length;
-    final overdueCount = provider.getOverdueReminders().length;
-
+    final hPad = Responsive.getHorizontalPadding(context);
     return SliverAppBar(
-      expandedHeight: 180,
-      floating: false,
+      expandedHeight: 200,
       pinned: true,
-      backgroundColor: AppTheme.primaryColor,
+      backgroundColor: Theme.of(context).primaryColor,
+      elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withValues(alpha: 0.8),
-                AppTheme.accentColor,
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -30,
+                top: -20,
+                child: Icon(
+                  Icons.notifications_active_outlined,
+                  size: 200,
+                  color: Colors.white.withOpacity(0.05),
+                ),
+              ),
+              SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 40, hPad, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const FaIcon(
-                          FontAwesomeIcons.bell,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Active Bills',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Reminders',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          _buildActionBtn(
+                            Icons.auto_awesome_rounded,
+                            () => _showAISuggestions(context),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Reminders',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '$totalPending pending${overdueCount > 0 ? ' • $overdueCount overdue' : ''}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          _buildMiniStat(
+                            'Pending',
+                            '${provider.getPendingReminders().length}',
+                            Icons.timer_outlined,
+                            Colors.orangeAccent,
+                          ),
+                          const SizedBox(width: 16),
+                          _buildMiniStat(
+                            'Overdue',
+                            '${provider.getOverdueReminders().length}',
+                            Icons.error_outline,
+                            Colors.redAccent,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
-      actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const FaIcon(
-              FontAwesomeIcons.wandMagicSparkles,
+    );
+  }
+
+  Widget _buildActionBtn(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(icon, color: Colors.white, size: 24),
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            '$value $label',
+            style: const TextStyle(
               color: Colors.white,
-              size: 18,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
             ),
           ),
-          tooltip: 'AI Suggestions',
-          onPressed: () => _showAISuggestions(context),
-        ),
-        const SizedBox(width: 8),
-      ],
+        ],
+      ),
     );
   }
 
@@ -223,44 +267,37 @@ class _ReminderScreenState extends State<ReminderScreen>
     IconData icon,
     Color color,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+    return Expanded(
+      child: PremiumCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 18),
             ),
-            child: FaIcon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -450,227 +487,108 @@ class _ReminderScreenState extends State<ReminderScreen>
     final daysUntilDue = reminder.dueDate.difference(DateTime.now()).inDays;
     final color = isOverdue
         ? AppTheme.errorColor
-        : daysUntilDue <= 3
-        ? AppTheme.warningColor
-        : AppTheme.primaryColor;
+        : (daysUntilDue <= 3 ? AppTheme.warningColor : AppTheme.primaryColor);
 
-    return Dismissible(
-      key: Key(reminder.id ?? ''),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.errorColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        child: const FaIcon(FontAwesomeIcons.trash, color: Colors.white),
-      ),
-      onDismissed: (direction) {
-        provider.deleteReminder(reminder.id ?? '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Reminder deleted'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+    return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: PremiumCard(
+            onTap: () => showDialog(
+              context: context,
+              builder: (context) => AddReminderDialog(reminder: reminder),
             ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isOverdue
-                ? AppTheme.errorColor.withValues(alpha: 0.3)
-                : Colors.transparent,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isOverdue
-                  ? AppTheme.errorColor.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) => AddReminderDialog(reminder: reminder),
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Icon
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [color, color.withValues(alpha: 0.7)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.6)],
                     ),
-                    child: FaIcon(
-                      _getIconForType(reminder.type),
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  const SizedBox(width: 16),
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          reminder.title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                  child: Icon(
+                    _getIconForType(reminder.type),
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reminder.title,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            FaIcon(
-                              FontAwesomeIcons.calendar,
-                              size: 12,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_rounded,
+                            size: 12,
+                            color: isOverdue
+                                ? AppTheme.errorColor
+                                : AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            DateFormat('MMM d, yyyy').format(reminder.dueDate),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
                               color: isOverdue
                                   ? AppTheme.errorColor
                                   : AppTheme.textSecondary,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              DateFormat(
-                                'MMM d, yyyy',
-                              ).format(reminder.dueDate),
-                              style: TextStyle(
-                                color: isOverdue
-                                    ? AppTheme.errorColor
-                                    : AppTheme.textSecondary,
-                                fontSize: 13,
-                                fontWeight: isOverdue
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                            if (reminder.isRecurring) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentColor.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    FaIcon(
-                                      FontAwesomeIcons.rotate,
-                                      size: 10,
-                                      color: AppTheme.accentColor,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      reminder.recurringType ?? 'Recurring',
-                                      style: TextStyle(
-                                        color: AppTheme.accentColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (reminder.amount != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            '₹${reminder.amount!.toStringAsFixed(0)}',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: color,
-                                ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  // Actions
-                  Column(
-                    children: [
-                      _buildActionButton(
-                        context,
-                        FontAwesomeIcons.check,
-                        AppTheme.successColor,
-                        () => _showCompleteDialog(context, reminder, provider),
-                        'Done',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildActionButton(
-                        context,
-                        FontAwesomeIcons.clockRotateLeft,
-                        AppTheme.textSecondary,
-                        () => _showSnoozeDialog(context, reminder, provider),
-                        'Snooze',
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (reminder.amount != null)
+                      Text(
+                        '₹${reminder.amount!.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          color: color,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    _buildActionBtnSmall(
+                      Icons.check_rounded,
+                      AppTheme.successColor,
+                      () => _showCompleteDialog(context, reminder, provider),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-      ),
-    );
+        )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .slideX(begin: 0.1, curve: Curves.easeOutQuad);
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-    String tooltip,
-  ) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: FaIcon(icon, color: color, size: 16),
+  Widget _buildActionBtnSmall(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
@@ -701,80 +619,84 @@ class _ReminderScreenState extends State<ReminderScreen>
       itemBuilder: (context, index) {
         final reminder = completedReminders[index];
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const FaIcon(
-                    FontAwesomeIcons.circleCheck,
-                    color: AppTheme.successColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reminder.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          decoration: TextDecoration.lineThrough,
-                          color: AppTheme.textSecondary,
-                        ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Paid: ${reminder.paidDate != null ? DateFormat('MMM d, yyyy').format(reminder.paidDate!) : 'Unknown'}',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                        ),
+                      child: const FaIcon(
+                        FontAwesomeIcons.circleCheck,
+                        color: AppTheme.successColor,
+                        size: 20,
                       ),
-                      if (reminder.amount != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          '₹${reminder.amount!.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reminder.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              decoration: TextDecoration.lineThrough,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Paid: ${reminder.paidDate != null ? DateFormat('MMM d, yyyy').format(reminder.paidDate!) : 'Unknown'}',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (reminder.amount != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '₹${reminder.amount!.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          _reworkReminder(context, reminder, provider),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.warningColor,
+                      ),
+                      child: const Text('Rework'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => _reworkReminder(context, reminder, provider),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.warningColor,
-                  ),
-                  child: const Text('Rework'),
-                ),
-              ],
-            ),
-          ),
-        );
+              ),
+            )
+            .animate(delay: (index * 50).ms)
+            .fadeIn(duration: 400.ms)
+            .slideY(begin: 0.1, curve: Curves.easeOutQuad);
       },
     );
   }
@@ -816,156 +738,6 @@ class _ReminderScreenState extends State<ReminderScreen>
             ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildModernFAB(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: FloatingActionButton.extended(
-        heroTag: 'add_reminder_fab',
-        onPressed: () async {
-          await showDialog(
-            context: context,
-            builder: (context) => const AddReminderDialog(),
-          );
-          await StartIOAds.showInterstitial();
-        },
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        icon: const FaIcon(FontAwesomeIcons.plus, size: 18),
-        label: const Text(
-          'Add Reminder',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-  }
-
-  // Dialog Methods (keeping existing logic)
-  void _showSnoozeDialog(
-    BuildContext context,
-    Reminder reminder,
-    ReminderProvider provider,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.textSecondary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Snooze Reminder',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            _buildSnoozeOption(
-              context,
-              'Tomorrow',
-              const Duration(days: 1),
-              reminder,
-              provider,
-            ),
-            _buildSnoozeOption(
-              context,
-              'In 3 Days',
-              const Duration(days: 3),
-              reminder,
-              provider,
-            ),
-            _buildSnoozeOption(
-              context,
-              'Next Week',
-              const Duration(days: 7),
-              reminder,
-              provider,
-            ),
-            _buildSnoozeOption(
-              context,
-              'Next Month',
-              const Duration(days: 30),
-              reminder,
-              provider,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSnoozeOption(
-    BuildContext context,
-    String label,
-    Duration duration,
-    Reminder reminder,
-    ReminderProvider provider,
-  ) {
-    return ListTile(
-      onTap: () {
-        _snooze(context, reminder, provider, duration);
-      },
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: FaIcon(
-          FontAwesomeIcons.clockRotateLeft,
-          color: AppTheme.primaryColor,
-          size: 18,
-        ),
-      ),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.chevron_right),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-
-  void _snooze(
-    BuildContext context,
-    Reminder reminder,
-    ReminderProvider provider,
-    Duration duration,
-  ) {
-    final newDate = reminder.dueDate.add(duration);
-    final updatedReminder = reminder.copyWith(dueDate: newDate);
-    provider.updateReminder(updatedReminder);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Snoozed until ${DateFormat('MMM d').format(newDate)}'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -1136,7 +908,7 @@ class _ReminderScreenState extends State<ReminderScreen>
     );
     provider.updateReminder(updatedReminder);
     // Show ad after completion
-    StartIOAds.showInterstitial();
+    StartIOAds.showInterstitial(context);
   }
 
   void _reworkReminder(
@@ -1195,7 +967,7 @@ class _ReminderScreenState extends State<ReminderScreen>
     );
     provider.updateReminder(updatedReminder);
     // Show ad after rework
-    StartIOAds.showInterstitial();
+    StartIOAds.showInterstitial(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

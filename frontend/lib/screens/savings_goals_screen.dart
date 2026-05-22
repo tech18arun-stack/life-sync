@@ -10,6 +10,7 @@ import '../providers/financial_data_manager.dart';
 import '../services/gemini_service.dart';
 import '../services/startio_ads.dart';
 import '../utils/app_theme.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class SavingsGoalsScreen extends StatelessWidget {
   const SavingsGoalsScreen({super.key});
@@ -129,7 +130,10 @@ class SavingsGoalsScreen extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) =>
-                          _buildGoalCard(context, activeGoals[index]),
+                          _buildGoalCard(context, activeGoals[index])
+                              .animate(delay: (index * 50).ms)
+                              .fadeIn()
+                              .slideX(begin: 0.1, curve: Curves.easeOutQuad),
                       childCount: activeGoals.length,
                     ),
                   ),
@@ -158,7 +162,10 @@ class SavingsGoalsScreen extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) =>
-                          _buildGoalCard(context, completedGoals[index]),
+                          _buildGoalCard(context, completedGoals[index])
+                              .animate(delay: (index * 50).ms)
+                              .fadeIn()
+                              .slideX(begin: 0.1, curve: Curves.easeOutQuad),
                       childCount: completedGoals.length,
                     ),
                   ),
@@ -206,7 +213,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            color: theme.textTheme.bodyMedium?.color
+                                ?.withOpacity(0.7),
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -392,7 +400,9 @@ class SavingsGoalsScreen extends StatelessWidget {
                       width: 54,
                       height: 54,
                       decoration: BoxDecoration(
-                        color: _getPriorityColor(goal.priority).withOpacity(0.1),
+                        color: _getPriorityColor(
+                          goal.priority,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       alignment: Alignment.center,
@@ -423,7 +433,9 @@ class SavingsGoalsScreen extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getPriorityColor(goal.priority).withOpacity(0.1),
+                                  color: _getPriorityColor(
+                                    goal.priority,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -441,7 +453,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                                   '•  ${goal.daysRemaining} days left',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
-                                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                                    color: theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.6),
                                   ),
                                 ),
                               ],
@@ -453,7 +466,10 @@ class SavingsGoalsScreen extends StatelessWidget {
                     Container(
                       margin: const EdgeInsets.only(left: 8),
                       child: IconButton(
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 28),
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 28,
+                        ),
                         color: AppTheme.primaryColor,
                         onPressed: () => _showAddMoneyDialog(context, goal),
                       ),
@@ -468,7 +484,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: '₹${NumberFormat('#,##,##0', 'en_IN').format(goal.currentAmount)}',
+                            text:
+                                '₹${NumberFormat('#,##,##0', 'en_IN').format(goal.currentAmount)}',
                             style: GoogleFonts.inter(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -481,7 +498,8 @@ class SavingsGoalsScreen extends StatelessWidget {
                             text: ' saved',
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.6),
                             ),
                           ),
                         ],
@@ -508,22 +526,31 @@ class SavingsGoalsScreen extends StatelessWidget {
                       ),
                     ),
                     FractionallySizedBox(
-                      widthFactor: goal.percentageCompleted / 100 > 1 ? 1 : goal.percentageCompleted / 100,
+                      widthFactor: goal.percentageCompleted / 100 > 1
+                          ? 1
+                          : goal.percentageCompleted / 100,
                       child: Container(
                         height: 10,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              isCompleted ? AppTheme.successColor : AppTheme.primaryColor,
-                              (isCompleted ? AppTheme.successColor : AppTheme.primaryColor)
+                              isCompleted
+                                  ? AppTheme.successColor
+                                  : AppTheme.primaryColor,
+                              (isCompleted
+                                      ? AppTheme.successColor
+                                      : AppTheme.primaryColor)
                                   .withOpacity(0.7),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(5),
                           boxShadow: [
                             BoxShadow(
-                              color: (isCompleted ? AppTheme.successColor : AppTheme.primaryColor)
-                                  .withOpacity(0.3),
+                              color:
+                                  (isCompleted
+                                          ? AppTheme.successColor
+                                          : AppTheme.primaryColor)
+                                      .withOpacity(0.3),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -541,7 +568,9 @@ class SavingsGoalsScreen extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isCompleted ? AppTheme.successColor : AppTheme.primaryColor,
+                      color: isCompleted
+                          ? AppTheme.successColor
+                          : AppTheme.primaryColor,
                     ),
                   ),
                 ),
@@ -575,7 +604,7 @@ class SavingsGoalsScreen extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
+                color: Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -814,7 +843,7 @@ class SavingsGoalsScreen extends StatelessWidget {
                       }
                       Navigator.pop(context);
                       // Show ad after goal action
-                      StartIOAds.showInterstitial();
+                      StartIOAds.showInterstitial(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -898,7 +927,7 @@ class SavingsGoalsScreen extends StatelessWidget {
                       );
                       Navigator.pop(context);
                       // Show ad after adding money
-                      StartIOAds.showInterstitial();
+                      StartIOAds.showInterstitial(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(

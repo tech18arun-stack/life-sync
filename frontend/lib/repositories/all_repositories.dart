@@ -4,7 +4,7 @@ import '../models/family_number.dart';
 import '../models/task.dart';
 import '../models/savings_goal.dart';
 import '../models/reminder.dart';
-import '../models/health_record.dart';
+
 import '../services/appwrite_service.dart';
 import 'base_repository.dart';
 
@@ -298,9 +298,7 @@ class SavingsGoalsRepository implements BaseRepository<SavingsGoal> {
     if (goal == null) {
       throw Exception('Savings goal not found');
     }
-    final updated = goal.copyWith(
-      currentAmount: goal.currentAmount + amount,
-    );
+    final updated = goal.copyWith(currentAmount: goal.currentAmount + amount);
     return update(id, updated);
   }
 
@@ -374,87 +372,7 @@ class RemindersRepository implements BaseRepository<Reminder> {
     if (reminder == null) {
       throw Exception('Reminder not found');
     }
-    final updated = reminder.copyWith(
-      isPaid: true,
-      paidDate: DateTime.now(),
-    );
-    return update(id, updated);
-  }
-}
-
-/// Health Records Repository
-class HealthRecordsRepository implements BaseRepository<HealthRecord> {
-  final AppwriteService _appwrite = AppwriteService();
-
-  @override
-  Future<HealthRecord> create(HealthRecord item) async {
-    final data = await _appwrite.createHealthRecord(item.toJson());
-    return HealthRecord.fromJson(data);
-  }
-
-  @override
-  Future<List<HealthRecord>> getAll({Map<String, dynamic>? filters}) async {
-    final data = await _appwrite.getHealthRecords(
-      memberName: filters?['member_name'] as String?,
-      recordType: filters?['record_type'] as String?,
-    );
-    return data.map((json) => HealthRecord.fromJson(json)).toList();
-  }
-
-  @override
-  Future<HealthRecord?> getById(String id) async {
-    final data = await _appwrite.getDocument(
-      collectionId: AppwriteService.healthRecordsCollection,
-      documentId: id,
-    );
-    if (data == null) return null;
-    return HealthRecord.fromJson(data);
-  }
-
-  @override
-  Future<HealthRecord> update(String id, HealthRecord item) async {
-    final data = await _appwrite.updateHealthRecord(id, item.toJson());
-    return HealthRecord.fromJson(data);
-  }
-
-  @override
-  Future<void> delete(String id) async {
-    await _appwrite.deleteHealthRecord(id);
-  }
-
-  @override
-  Future<void> deleteAll(List<String> ids) async {
-    for (final id in ids) {
-      await delete(id);
-    }
-  }
-
-  /// Get records by member name
-  Future<List<HealthRecord>> getByMember(String memberName) async {
-    final data = await _appwrite.getHealthRecords(memberName: memberName);
-    return data.map((json) => HealthRecord.fromJson(json)).toList();
-  }
-
-  /// Get records by type
-  Future<List<HealthRecord>> getByType(String recordType) async {
-    final data = await _appwrite.getHealthRecords(recordType: recordType);
-    return data.map((json) => HealthRecord.fromJson(json)).toList();
-  }
-
-  /// Add attachment URLs to health record
-  Future<HealthRecord> addAttachments(
-    String id,
-    List<String> attachmentUrls,
-  ) async {
-    final record = await getById(id);
-    if (record == null) {
-      throw Exception('Health record not found');
-    }
-
-    final existingAttachments = record.attachments ?? [];
-    final updatedAttachments = [...existingAttachments, ...attachmentUrls];
-
-    final updated = record.copyWith(attachments: updatedAttachments);
+    final updated = reminder.copyWith(isPaid: true, paidDate: DateTime.now());
     return update(id, updated);
   }
 }

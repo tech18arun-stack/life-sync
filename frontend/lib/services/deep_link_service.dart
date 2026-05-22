@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 import 'appwrite_service.dart';
 
 /// Deep Link Service for handling app links and auth redirects
-/// 
+///
 /// Updated for Appwrite authentication flow.
+/// Note: Newer Appwrite SDK handles OAuth internally - no custom deep link needed for OAuth.
 class DeepLinkService {
   static const _channel = MethodChannel('deep_links');
   static final AppwriteService _appwrite = AppwriteService();
@@ -33,9 +34,6 @@ class DeepLinkService {
         await _handleDeepLink(uri.toString());
       }
     }
-
-    // Note: Appwrite handles auth state differently than Supabase
-    // Auth state is managed through the AuthService
   }
 
   static Future<void> _handleMethod(MethodCall call) async {
@@ -62,12 +60,8 @@ class DeepLinkService {
 
   static Future<void> _handleAppwriteAuthRedirect(Uri uri) async {
     try {
-      // Appwrite handles authentication through sessions
-      // This method can be extended to handle specific Appwrite auth flows
       debugPrint('Handling Appwrite auth redirect: ${uri.toString()}');
-      
-      // The auth state will be automatically managed by AuthService
-      // You can add custom logic here if needed
+      // Auth state will be automatically managed by AuthService
     } catch (e) {
       debugPrint('Error handling Appwrite auth redirect: $e');
     }

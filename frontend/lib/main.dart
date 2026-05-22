@@ -7,12 +7,12 @@ import 'services/appwrite_service.dart';
 import 'providers/auth_provider.dart';
 import 'services/deep_link_service.dart';
 import 'providers/financial_data_manager.dart';
-import 'providers/health_provider.dart';
 import 'providers/family_provider.dart';
 import 'providers/family_number_provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/savings_goal_provider.dart';
+
 
 import 'providers/family_event_provider.dart';
 import 'providers/theme_provider.dart';
@@ -22,6 +22,8 @@ import 'providers/subscription_provider.dart';
 import 'services/notification_service.dart';
 import 'services/gemini_service.dart';
 import 'services/security_service.dart';
+import 'services/auth_service.dart';
+import 'services/categorization_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/startio_ads.dart';
@@ -35,13 +37,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Config Service First
-  await ConfigService().initialize();
+  await ConfigService().initialize(forceRefresh: false);
+  
+  // Debug: Print config values to verify premium cost
+  ConfigService().debugPrintConfig();
 
   // Initialize Appwrite
   await AppwriteService().initialize();
 
   // Initialize Security Service (App Lock / Biometric)
   await SecurityService().initialize();
+
+  // ⭐ CRITICAL: Initialize Auth Service early to detect Premium status before Ads/Splash
+  final authService = AuthService();
+  await authService.initialize();
 
   // Initialize platform-specific services only on mobile
   if (!kIsWeb) {
@@ -53,10 +62,9 @@ void main() async {
     // Initialize Deep Link Service
     await DeepLinkService.initDeepLinks();
 
-    // Initialize Start.io only if enabled, but REMOVE showSplash and showReturnAd for login splash
-    if (ConfigService().adsEnabled && ConfigService().startioEnabled) {
+    // Initialize Start.io only if enabled and user is NOT premium
+    if (ConfigService().adsEnabled && ConfigService().startioEnabled && authService.currentUser?.isPremiumActive != true) {
       await StartIOAds.initialize(ConfigService().startioAppId);
-      // NOTE: Removed showSplash and showReturnAd per user request to clean up login/splash
     }
   }
 
@@ -129,18 +137,6 @@ class MyApp extends StatelessWidget {
           },
         ),
 
-        // Health Provider (Appwrite)
-        ChangeNotifierProxyProvider<AuthProvider, HealthProvider>(
-          create: (_) => HealthProvider(),
-          update: (_, auth, provider) {
-            final p = provider ?? HealthProvider();
-            if (auth.isLoggedIn && !p.isLoading && p.healthRecords.isEmpty) {
-              Future.microtask(() => p.initialize());
-            }
-            return p;
-          },
-        ),
-
         // Reminder Provider
         ChangeNotifierProxyProvider<FinancialDataManager, ReminderProvider>(
           create: (_) => ReminderProvider()..initialize(),
@@ -186,8 +182,15 @@ class MyApp extends StatelessWidget {
           },
         ),
 
+
+
         // AI Service
         ChangeNotifierProvider(create: (_) => GeminiService()..initialize()),
+
+        // Categorization Service (depends on GeminiService)
+        ProxyProvider<GeminiService, CategorizationService>(
+          update: (_, gemini, __) => CategorizationService(gemini),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
